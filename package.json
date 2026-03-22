@@ -1,0 +1,49 @@
+{
+  "name": "flower-survey",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@prisma/client": "latest"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n shared,backend,frontend -c magenta,cyan,green \"npm run dev -w @flower-survey/shared\" \"npm run dev -w @flower-survey/backend\" \"npm run dev -w @flower-survey/frontend\"",
+    "dev:frontend": "npm run dev -w @flower-survey/frontend",
+    "dev:backend": "npm run dev -w @flower-survey/backend",
+    "dev:shared": "npm run dev -w @flower-survey/shared",
+    "build": "npm run build -w @flower-survey/shared && npm run build -w @flower-survey/backend && npm run build -w @flower-survey/frontend",
+    "lint": "eslint . --max-warnings=0",
+    "test": "npm run test -w @flower-survey/shared && npm run test -w @flower-survey/backend && npm run test -w @flower-survey/frontend",
+    "test:watch": "concurrently -n shared,backend,frontend -c magenta,cyan,green \"npm run test:watch -w @flower-survey/shared\" \"npm run test:watch -w @flower-survey/backend\" \"npm run test:watch -w @flower-survey/frontend\"",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prisma:format": "prisma format",
+    "prisma:validate": "prisma validate",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "npm run prisma:generate && node --import tsx prisma/seed.ts"
+  },
+  "devDependencies": {
+    "@prisma/adapter-pg": "latest",
+    "@eslint/js": "^9.39.0",
+    "@next/eslint-plugin-next": "latest",
+    "concurrently": "latest",
+    "eslint": "^9.39.0",
+    "eslint-config-prettier": "latest",
+    "eslint-plugin-react": "latest",
+    "eslint-plugin-react-hooks": "latest",
+    "globals": "latest",
+    "pg": "latest",
+    "prettier": "latest",
+    "prisma": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "typescript-eslint": "latest",
+    "vitest": "latest"
+  }
+}

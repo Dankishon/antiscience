@@ -1,0 +1,679 @@
+{
+  "survey": {
+    "code": "flower-soul-profile",
+    "version": 1,
+    "title": "Цветочный профиль души",
+    "description": "Разработка цветочного профиля личности на основе MMPI",
+    "algorithmVersion": "v1",
+    "tieBreakStrategy": "FIRST_MATCH",
+    "sourceDocument": "Antinachnaya_konferentsia.docx",
+    "sourceNote": "В файле указан случайный выбор при полном совпадении максимальных Z-оценок; в seed сохранен survey v1, а фактическая tie-break логика будет реализована отдельно.",
+    "instruction": "Оцените каждое утверждение по шкале от 0 до 4, где 0 — совершенно не согласен, 1 — скорее не согласен, 2 — нейтрально / не могу сказать, 3 — скорее согласен, 4 — полностью согласен.",
+    "likertScale": [
+      {
+        "value": 0,
+        "label": "совершенно не согласен"
+      },
+      {
+        "value": 1,
+        "label": "скорее не согласен"
+      },
+      {
+        "value": 2,
+        "label": "нейтрально / не могу сказать"
+      },
+      {
+        "value": 3,
+        "label": "скорее согласен"
+      },
+      {
+        "value": 4,
+        "label": "полностью согласен"
+      }
+    ],
+    "scoring": {
+      "rawScoreRange": "0–12",
+      "rawScoreFormula": "X = ответ1 + ответ2 + ответ3",
+      "meanFormula": "M_исп = (X1 + X2 + X3 + X4 + X5 + X6 + X7 + X8 + X9 + X10) / 10",
+      "standardDeviationFormula": "SD_исп = √[ Σ(X — M_исп)² / 10 ]",
+      "zFormula": "Z_внутр = (X — M_исп) / SD_исп",
+      "primaryFlowerRule": "Цветок души = шкала с максимальным Z_внутр"
+    }
+  },
+  "flowers": [
+    {
+      "code": "lily",
+      "title": "Лилия",
+      "symbol": "⚜️",
+      "sortOrder": 1,
+      "meaning": "Чистота, невинность, примирение; в средневековой традиции — символ Девы Марии, олицетворение непорочности",
+      "rationale": "Озабоченность здоровьем и телесной чистотой коррелирует с символическим значением лилии. Как отмечает Джессика Ру, в эпоху Средневековья лилия \"стала ассоциироваться с Девой Марией, почитанием ее чистоты\". Ипохондрик гипертрофированно стремится сохранить телесную \"непорочность\", что находит отражение в этом цветке",
+      "scaleCode": "hs",
+      "metadata": {
+        "sourceLabel": "Лилия",
+        "scaleTitle": "Ипохондрия",
+        "scaleShortCode": "Hs"
+      }
+    },
+    {
+      "code": "chrysanthemum",
+      "title": "Хризантема",
+      "symbol": "🌸",
+      "sortOrder": 2,
+      "meaning": "Соболезнования, траур, печаль; осенние цветы, традиционно используемые на похоронах и кладбищах",
+      "rationale": "Прямое соответствие: хризантемы символизируют траур и скорбь. Ру подтверждает: \"Осенние хризантемы до сих пор используются на похоронах и могилах, их значение \"соболезнования\" сохранилось на протяжении веков\". Это идеально коррелирует с депрессивной триадой: сниженное настроение, пессимизм, утрата способности радоваться",
+      "scaleCode": "d",
+      "metadata": {
+        "sourceLabel": "Хризантема",
+        "scaleTitle": "Депрессия",
+        "scaleShortCode": "D"
+      }
+    },
+    {
+      "code": "gerbera",
+      "title": "Гербера",
+      "symbol": "🌺",
+      "sortOrder": 3,
+      "meaning": "Радость, флирт, оптимизм, привлекающая внимание яркость",
+      "rationale": "Гербера символизирует флирт, кокетство и потребность во внимании. Яркий, заметный облик этого цветка метафорически отражает демонстративность, эмоциональную лабильность и потребность быть в центре внимания — ключевые характеристики истерического радикала. Как указывает Ру, викторианцы составляли \"говорящие букеты\" для выражения чувств, которые невозможно было произнести вслух",
+      "scaleCode": "hy",
+      "metadata": {
+        "sourceLabel": "Гербера",
+        "scaleTitle": "Истерия",
+        "scaleShortCode": "Hy"
+      }
+    },
+    {
+      "code": "tulip",
+      "title": "Тюльпан",
+      "symbol": "🌷",
+      "sortOrder": 4,
+      "meaning": "Безрассудная страсть, импульсивность, \"я тебя люблю\" как всепоглощающая страсть",
+      "rationale": "Красный тюльпан символизирует безрассудную страсть. Исторический феномен тюльпаномании в Голландии XVII века — когда луковицы тюльпанов стоили состояния, а спекуляция ими привела к экономическому краху — демонстрирует способность этого цветка вызывать иррациональное, импульсивное поведение, пренебрежение нормами. Это ключевые характеристики психопатии. Ру отмечает, что интерес к языку цветов в викторианскую эпоху \"восходит к Османской Турции и ее obsession с тюльпанами в первой половине XVIII века\"",
+      "scaleCode": "pd",
+      "metadata": {
+        "sourceLabel": "Тюльпан (красный)",
+        "scaleTitle": "Психопатия",
+        "scaleShortCode": "Pd"
+      }
+    },
+    {
+      "code": "rose",
+      "title": "Роза",
+      "symbol": "🌹",
+      "sortOrder": 5,
+      "meaning": "Нежная любовь, забота, глубокая привязанность; розы \"сохранили свое значение на протяжении веков\"",
+      "rationale": "Розовая роза — архетипический символ феминности. Джессика Ру подчеркивает: \"Самый очевидный пример — использование роз для выражения любви: от подарков романтическому интересу до свадеб и Дня святого Валентина, розы закрепили свое значение на протяжении времени\". Розовая роза, в отличие от красной, символизирует не страсть, а нежную заботу — качества, традиционно приписываемые женской гендерной роли",
+      "scaleCode": "mf_f",
+      "metadata": {
+        "sourceLabel": "Роза (розовая)",
+        "scaleTitle": "Феминность",
+        "scaleShortCode": "Mf (ж)"
+      }
+    },
+    {
+      "code": "cactus",
+      "title": "Кактус",
+      "symbol": "🌵",
+      "sortOrder": 6,
+      "meaning": "Защита, выживание, аскетизм; значение определяется формой растения",
+      "rationale": "Кактус выбран как антитеза розы: у розы есть шипы, но красота первична; у кактуса колючки — это и есть он сам. Согласно флориографии, значения цветов часто \"определялись по форме самого растения\". Форма кактуса (колючки, защита, функциональность) обосновывает его связь с маскулинной установкой: эмоциональная закрытость, ориентация на действие, а не на отношения, аскетическая \"мужественность\"",
+      "scaleCode": "mf_m",
+      "metadata": {
+        "sourceLabel": "Кактус",
+        "scaleTitle": "Маскулинность",
+        "scaleShortCode": "Mf (м)"
+      }
+    },
+    {
+      "code": "cereus",
+      "title": "Цереус",
+      "symbol": "🌙",
+      "sortOrder": 7,
+      "meaning": "Ночное цветение, скрытность, редкое раскрытие; значение из мифологии",
+      "rationale": "Цереус цветет только одну ночь в году, распуская цветок в темноте и увядая к рассвету. Согласно флориографии, значения цветов часто \"заимствовались из мифологии\". Это идеальная метафора параноидного радикала: скрытность (цветение только ночью), ощущение собственной исключительности (\"я цвету, когда другие спят\"), недоверие к окружающим (раскрытие только в безопасности темноты), гипербдительность (активность в условиях, когда другие уязвимы)",
+      "scaleCode": "pa",
+      "metadata": {
+        "sourceLabel": "Цереус (\"Царица ночи\")",
+        "scaleTitle": "Паранойя",
+        "scaleShortCode": "Pa"
+      }
+    },
+    {
+      "code": "orchid",
+      "title": "Орхидея",
+      "symbol": "🦋",
+      "sortOrder": 8,
+      "meaning": "Редкость, исключительность, элегантность, требовательность к условиям",
+      "rationale": "Орхидея символизирует редкость, исключительность и требовательность. Как отмечает флорист Морган Вестерберг-Джексон, \"в викторианскую эпоху орхидеи можно было найти только в тропическом климате. Люди, которые могли добыть и привезти эти цветы, обычно были богаты, поэтому орхидеи стали ассоциироваться с роскошью, богатством и элегантностью\". Это метафорически отражает перфекционизм, потребность в контроле, тревогу при отклонении от нормы — ключевые характеристики психастении",
+      "scaleCode": "pt",
+      "metadata": {
+        "sourceLabel": "Орхидея",
+        "scaleTitle": "Психастения",
+        "scaleShortCode": "Pt"
+      }
+    },
+    {
+      "code": "iris",
+      "title": "Ирис",
+      "symbol": "🌈",
+      "sortOrder": 9,
+      "meaning": "Мудрость, посредник между мирами, мистицизм; в греческой мифологии — вестник богов",
+      "rationale": "Ирис в древнегреческой мифологии — посредник между миром людей и богов, богиня радуги. Фиолетовый цвет традиционно ассоциируется с мистицизмом, тайной, связью с потусторонним. Ру указывает, что значения цветов \"черпались из греческих, норвежских, китайских и кельтских легенд\". Эти значения коррелируют со странностями мышления, необычными переживаниями и социальной изоляцией при шизофрении",
+      "scaleCode": "sc",
+      "metadata": {
+        "sourceLabel": "Фиолетовая орхидея / Ирис",
+        "scaleTitle": "Шизофрения",
+        "scaleShortCode": "Sc"
+      }
+    },
+    {
+      "code": "sunflower",
+      "title": "Подсолнух",
+      "symbol": "🌻",
+      "sortOrder": 10,
+      "meaning": "Солнце, радость, энергия, удача, гелиотропизм (постоянное движение к свету)",
+      "rationale": "Подсолнух символизирует неутомимую энергию и удачу. Как отмечает Вестерберг-Джексон, \"подсолнухи означают удачу, потому что они следуют за солнцем — незаменимым источником энергии, ясности и света. Эта жизненная сила передается этим цветам, которые традиционно символизируют долголетие, жизнеспособность и счастье\". Гелиотропизм — постоянное следование за солнцем — метафорически отражает психомоторное возбуждение, гиперактивность и эйфорию маниакального состояния",
+      "scaleCode": "ma",
+      "metadata": {
+        "sourceLabel": "Подсолнух",
+        "scaleTitle": "Мания",
+        "scaleShortCode": "Ma"
+      }
+    }
+  ],
+  "scales": [
+    {
+      "code": "hs",
+      "title": "Ипохондрия",
+      "shortCode": "Hs",
+      "flowerCode": "lily",
+      "sortOrder": 1,
+      "minScore": 0,
+      "maxScore": 12,
+      "metadata": {
+        "symbol": "⚜️",
+        "sourceFlowerLabel": "Лилия"
+      }
+    },
+    {
+      "code": "d",
+      "title": "Депрессия",
+      "shortCode": "D",
+      "flowerCode": "chrysanthemum",
+      "sortOrder": 2,
+      "minScore": 0,
+      "maxScore": 12,
+      "metadata": {
+        "symbol": "🌸",
+        "sourceFlowerLabel": "Хризантема"
+      }
+    },
+    {
+      "code": "hy",
+      "title": "Истерия",
+      "shortCode": "Hy",
+      "flowerCode": "gerbera",
+      "sortOrder": 3,
+      "minScore": 0,
+      "maxScore": 12,
+      "metadata": {
+        "symbol": "🌺",
+        "sourceFlowerLabel": "Гербера"
+      }
+    },
+    {
+      "code": "pd",
+      "title": "Психопатия",
+      "shortCode": "Pd",
+      "flowerCode": "tulip",
+      "sortOrder": 4,
+      "minScore": 0,
+      "maxScore": 12,
+      "metadata": {
+        "symbol": "🌷",
+        "sourceFlowerLabel": "Тюльпан (красный)"
+      }
+    },
+    {
+      "code": "mf_f",
+      "title": "Феминность",
+      "shortCode": "Mf (ж)",
+      "flowerCode": "rose",
+      "sortOrder": 5,
+      "minScore": 0,
+      "maxScore": 12,
+      "metadata": {
+        "symbol": "🌹",
+        "sourceFlowerLabel": "Роза (розовая)"
+      }
+    },
+    {
+      "code": "mf_m",
+      "title": "Маскулинность",
+      "shortCode": "Mf (м)",
+      "flowerCode": "cactus",
+      "sortOrder": 6,
+      "minScore": 0,
+      "maxScore": 12,
+      "metadata": {
+        "symbol": "🌵",
+        "sourceFlowerLabel": "Кактус"
+      }
+    },
+    {
+      "code": "pa",
+      "title": "Паранойя",
+      "shortCode": "Pa",
+      "flowerCode": "cereus",
+      "sortOrder": 7,
+      "minScore": 0,
+      "maxScore": 12,
+      "metadata": {
+        "symbol": "🌙",
+        "sourceFlowerLabel": "Цереус (\"Царица ночи\")"
+      }
+    },
+    {
+      "code": "pt",
+      "title": "Психастения",
+      "shortCode": "Pt",
+      "flowerCode": "orchid",
+      "sortOrder": 8,
+      "minScore": 0,
+      "maxScore": 12,
+      "metadata": {
+        "symbol": "🦋",
+        "sourceFlowerLabel": "Орхидея"
+      }
+    },
+    {
+      "code": "sc",
+      "title": "Шизофрения",
+      "shortCode": "Sc",
+      "flowerCode": "iris",
+      "sortOrder": 9,
+      "minScore": 0,
+      "maxScore": 12,
+      "metadata": {
+        "symbol": "🌈",
+        "sourceFlowerLabel": "Фиолетовая орхидея / Ирис"
+      }
+    },
+    {
+      "code": "ma",
+      "title": "Мания",
+      "shortCode": "Ma",
+      "flowerCode": "sunflower",
+      "sortOrder": 10,
+      "minScore": 0,
+      "maxScore": 12,
+      "metadata": {
+        "symbol": "🌻",
+        "sourceFlowerLabel": "Подсолнух"
+      }
+    }
+  ],
+  "questions": [
+    {
+      "number": 1,
+      "prompt": "Чистота и непорочность для меня — важные ценности.",
+      "sourceScale": "Hs",
+      "scaleCode": "hs",
+      "code": "hs_01",
+      "sortOrder": 1,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 2,
+      "prompt": "Гигиена и забота о чистоте тела для меня — не просто привычка, а важная ценность.",
+      "sourceScale": "Hs",
+      "scaleCode": "hs",
+      "code": "hs_02",
+      "sortOrder": 2,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 3,
+      "prompt": "Я внимательно прислушиваюсь к тому, что чувствует мое тело, и замечаю даже малейшие изменения.",
+      "sourceScale": "Hs",
+      "scaleCode": "hs",
+      "code": "hs_03",
+      "sortOrder": 3,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 4,
+      "prompt": "Осень для меня — время тихой печали и размышлений.",
+      "sourceScale": "D",
+      "scaleCode": "d",
+      "code": "d_01",
+      "sortOrder": 4,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 5,
+      "prompt": "Я часто думаю о том, что всему приходит конец, и это не пугает меня, а скорее навевает спокойную грусть.",
+      "sourceScale": "D",
+      "scaleCode": "d",
+      "code": "d_02",
+      "sortOrder": 5,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 6,
+      "prompt": "Увядающая, спокойная красота осени мне ближе, чем яркость и буйство лета.",
+      "sourceScale": "D",
+      "scaleCode": "d",
+      "code": "d_03",
+      "sortOrder": 6,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 7,
+      "prompt": "Мне нравятся яркие, заметные вещи — они должны привлекать внимание.",
+      "sourceScale": "Hy",
+      "scaleCode": "hy",
+      "code": "hy_01",
+      "sortOrder": 7,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 8,
+      "prompt": "Я люблю флирт и кокетство, это делает жизнь интереснее.",
+      "sourceScale": "Hy",
+      "scaleCode": "hy",
+      "code": "hy_02",
+      "sortOrder": 8,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 9,
+      "prompt": "Мне нравятся вещи, которые сами заявляют о себе, говорят без слов.",
+      "sourceScale": "Hy",
+      "scaleCode": "hy",
+      "code": "hy_03",
+      "sortOrder": 9,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 10,
+      "prompt": "Иногда стоит действовать импульсивно, не думая о последствиях.",
+      "sourceScale": "Pd",
+      "scaleCode": "pd",
+      "code": "pd_01",
+      "sortOrder": 10,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 11,
+      "prompt": "Я готов(а) пойти на риск и потратить больше, чем планировал(а), если мне что-то действительно нравится.",
+      "sourceScale": "Pd",
+      "scaleCode": "pd",
+      "code": "pd_02",
+      "sortOrder": 11,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 12,
+      "prompt": "Ради того, что мне действительно нравится, я готов(а) пойти на риск, даже если это кажется безумным.",
+      "sourceScale": "Pd",
+      "scaleCode": "pd",
+      "code": "pd_03",
+      "sortOrder": 12,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 13,
+      "prompt": "Красота и нежность важнее практичности и функциональности.",
+      "sourceScale": "Mf (ж)",
+      "scaleCode": "mf_f",
+      "code": "mf_f_01",
+      "sortOrder": 13,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 14,
+      "prompt": "В отношениях я ценю заботу и умение проявлять чувства.",
+      "sourceScale": "Mf (ж)",
+      "scaleCode": "mf_f",
+      "code": "mf_f_02",
+      "sortOrder": 14,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 15,
+      "prompt": "Даже если у чего-то есть недостатки, главное — это красота.",
+      "sourceScale": "Mf (ж)",
+      "scaleCode": "mf_f",
+      "code": "mf_f_03",
+      "sortOrder": 15,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 16,
+      "prompt": "Главное — выживание и защита, а не красота.",
+      "sourceScale": "Mf (м)",
+      "scaleCode": "mf_m",
+      "code": "mf_m_01",
+      "sortOrder": 16,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 17,
+      "prompt": "Я ценю функциональность: форма должна следовать за содержанием, а не наоборот.",
+      "sourceScale": "Mf (м)",
+      "scaleCode": "mf_m",
+      "code": "mf_m_02",
+      "sortOrder": 17,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 18,
+      "prompt": "Я ценю тех, кто может выжить в суровых условиях и не требует постоянной заботы.",
+      "sourceScale": "Mf (м)",
+      "scaleCode": "mf_m",
+      "code": "mf_m_03",
+      "sortOrder": 18,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 19,
+      "prompt": "Я лучше раскрываюсь, когда вокруг темно и никто не видит.",
+      "sourceScale": "Pa",
+      "scaleCode": "pa",
+      "code": "pa_01",
+      "sortOrder": 19,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 20,
+      "prompt": "Мне кажется, что люди не готовы увидеть меня таким(ой), какой(ая) я есть на самом деле.",
+      "sourceScale": "Pa",
+      "scaleCode": "pa",
+      "code": "pa_02",
+      "sortOrder": 20,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 21,
+      "prompt": "Я чувствую себя собой, только когда остаюсь один(на) в тишине и темноте, когда никто не видит.",
+      "sourceScale": "Pa",
+      "scaleCode": "pa",
+      "code": "pa_03",
+      "sortOrder": 21,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 22,
+      "prompt": "Я считаю, что во всем нужно соблюдать строгие правила и порядок.",
+      "sourceScale": "Pt",
+      "scaleCode": "pt",
+      "code": "pt_01",
+      "sortOrder": 22,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 23,
+      "prompt": "Если что-то идет не так, как я задумал(а), я начинаю волноваться и перепроверять.",
+      "sourceScale": "Pt",
+      "scaleCode": "pt",
+      "code": "pt_02",
+      "sortOrder": 23,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 24,
+      "prompt": "Я стремлюсь к идеалу во всем и считаю, что идеальные условия заслуживают того, чтобы их создавать.",
+      "sourceScale": "Pt",
+      "scaleCode": "pt",
+      "code": "pt_03",
+      "sortOrder": 24,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 25,
+      "prompt": "Мне близки загадочные, мистические вещи, которые не объяснить словами.",
+      "sourceScale": "Sc",
+      "scaleCode": "sc",
+      "code": "sc_01",
+      "sortOrder": 25,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 26,
+      "prompt": "Меня привлекают необычные, таинственные вещи, о которых существуют легенды и мифы.",
+      "sourceScale": "Sc",
+      "scaleCode": "sc",
+      "code": "sc_02",
+      "sortOrder": 26,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 27,
+      "prompt": "Иногда мне кажется, что между мной и окружающим миром есть невидимая связь, как в древних мифах.",
+      "sourceScale": "Sc",
+      "scaleCode": "sc",
+      "code": "sc_03",
+      "sortOrder": 27,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 28,
+      "prompt": "Я полон(на) энергии, мне нравится двигаться к цели и \"тянуться к свету\".",
+      "sourceScale": "Ma",
+      "scaleCode": "ma",
+      "code": "ma_01",
+      "sortOrder": 28,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 29,
+      "prompt": "Я могу говорить быстро и много, если тема меня увлекает.",
+      "sourceScale": "Ma",
+      "scaleCode": "ma",
+      "code": "ma_02",
+      "sortOrder": 29,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    },
+    {
+      "number": 30,
+      "prompt": "Я чувствую, что постоянно нахожусь в движении, меня тянет к новому, к развитию.",
+      "sourceScale": "Ma",
+      "scaleCode": "ma",
+      "code": "ma_03",
+      "sortOrder": 30,
+      "weight": 1,
+      "minValue": 0,
+      "maxValue": 4,
+      "required": true
+    }
+  ]
+}
