@@ -1,5 +1,5 @@
-import { HealthCard } from '../components/health-card';
+import { LandingShowcase } from '../components/landing-showcase';
 
 export default function HomePage() {
-  return <HealthCard />;
+  return <LandingShowcase />;
 }

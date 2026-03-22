@@ -8,16 +8,20 @@
     "start": "next start --port 3000",
     "lint": "eslint src next.config.ts --max-warnings=0",
     "test": "vitest run --config vitest.config.ts",
+    "test:e2e": "playwright test --config playwright.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@flower-survey/shared": "0.1.0",
+    "chart.js": "^4.5.0",
     "next": "latest",
     "react": "latest",
+    "react-chartjs-2": "^5.3.0",
     "react-dom": "latest"
   },
   "devDependencies": {
+    "@playwright/test": "^1.51.1",
     "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
     "@types/node": "latest",

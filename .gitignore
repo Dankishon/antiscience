@@ -8,3 +8,5 @@ coverage
 .env.local
 *.tsbuildinfo
 prisma/generated
+playwright-report
+test-results

@@ -6,6 +6,6 @@ import { TieBreakAuditService } from './tie-break-audit.service';
 
 @Module({
   providers: [RandomService, ResultService, SurveyCatalogService, TieBreakAuditService],
-  exports: [ResultService],
+  exports: [ResultService, SurveyCatalogService],
 })
 export class ResultsModule {}
