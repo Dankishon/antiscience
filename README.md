@@ -14,6 +14,12 @@
 - `postgres` хранит пользователей, сессии ответов и результаты
 - `nginx` отдаёт frontend и проксирует `/api/*` в backend
 
+Путь трафика:
+
+- `http://localhost:8080/` → `nginx` → `frontend`
+- `http://localhost:8080/api/*` → `nginx` → `backend`
+- `backend` → `postgres:5432`
+
 ## Что реализовано
 
 - авторизация по `username + password`
@@ -72,6 +78,12 @@ docker compose down -v
 docker compose up --build
 ```
 
+## Проверка после старта
+
+- `docker compose ps` — все 4 сервиса должны быть `healthy`
+- `docker compose exec -T nginx wget -qO- http://127.0.0.1/api/health`
+- `docker compose exec -T backend python -c "from sqlalchemy import create_engine, text; import os; url = os.environ.get('DATABASE_URL') or 'postgresql+psycopg://{user}:{password}@{host}:{port}/{db}'.format(user=os.environ['POSTGRES_USER'], password=os.environ['POSTGRES_PASSWORD'], host=os.environ['POSTGRES_HOST'], port=os.environ['POSTGRES_PORT'], db=os.environ['POSTGRES_DB']); engine = create_engine(url); conn = engine.connect(); print(conn.execute(text('select 1')).scalar()); conn.close()"`
+
 ## Backend API
 
 - `POST /api/v1/auth/register`
@@ -84,6 +96,11 @@ docker compose up --build
 - `PUT /api/v1/responses/{session_id}/answers`
 - `POST /api/v1/responses/{session_id}/submit`
 - `GET /api/v1/responses/{session_id}/result`
+- `GET /api/v1/me/results`
+- `GET /api/v1/me/results/{id}`
+- `DELETE /api/v1/me/results/{id}`
+- `GET /api/v1/admin/analytics/summary`
+- `GET /api/v1/admin/analytics/export`
 - `GET /api/health`
 
 ## Итоговое дерево
@@ -100,7 +117,9 @@ docker compose up --build
 │   ├── alembic
 │   │   ├── env.py
 │   │   └── versions
-│   │       └── 202603230001_initial_schema.py
+│   │       ├── 202603230001_initial_schema.py
+│   │       ├── 202603230002_auth_sessions_and_roles.py
+│   │       └── 202603230003_results_analytics_model.py
 │   ├── alembic.ini
 │   ├── app
 │   │   ├── api

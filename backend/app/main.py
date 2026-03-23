@@ -5,7 +5,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes_admin import router as admin_router
 from app.api.routes_auth import router as auth_router
+from app.api.routes_me import router as me_router
 from app.api.routes_responses import router as responses_router
 from app.api.routes_survey import router as survey_router
 from app.core.config import get_settings
@@ -35,6 +37,8 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(survey_router, prefix="/api/v1")
 app.include_router(responses_router, prefix="/api/v1")
+app.include_router(me_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
 
 
 @app.get("/api/health")

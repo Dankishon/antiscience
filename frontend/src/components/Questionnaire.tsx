@@ -25,62 +25,94 @@ export function Questionnaire({
 }: QuestionnaireProps) {
   const question = survey.questions[currentIndex];
   const selectedValue = answers[question.code];
+  const answeredCount = responseSession?.answered_count ?? Object.keys(answers).length;
   const remaining = survey.questions.length - Object.keys(answers).length;
   const isLast = currentIndex === survey.questions.length - 1;
+  const progress = ((currentIndex + 1) / survey.questions.length) * 100;
 
   return (
-    <section className="card">
-      <div className="card__header">
-        <span className="eyebrow">
-          {survey.title} · {currentIndex + 1}/{survey.questions.length}
-        </span>
-        <h2>{question.prompt}</h2>
+    <div className="questionnaire-layout">
+      <aside className="card card--soft questionnaire-sidebar">
+        <span className="eyebrow">Структура опроса</span>
+        <h2>{survey.title}</h2>
         <p>{survey.instruction}</p>
-      </div>
 
-      <div className="progress">
-        <div className="progress__bar" style={{ width: `${((currentIndex + 1) / survey.questions.length) * 100}%` }} />
-      </div>
+        <div className="metric-list">
+          <div className="metric-item">
+            <span>Текущий вопрос</span>
+            <strong>
+              {currentIndex + 1} из {survey.questions.length}
+            </strong>
+          </div>
+          <div className="metric-item">
+            <span>Ответов сохранено</span>
+            <strong>{answeredCount}</strong>
+          </div>
+          <div className="metric-item">
+            <span>Осталось</span>
+            <strong>{remaining}</strong>
+          </div>
+        </div>
+      </aside>
 
-      <div className="options">
-        {survey.likert_scale.map((option) => (
+      <section className="card questionnaire-card">
+        <div className="questionnaire-card__header">
+          <div>
+            <span className="eyebrow">Вопрос {currentIndex + 1}</span>
+            <h1>{question.prompt}</h1>
+          </div>
+          <p className="status-note">
+            {saving ? 'Сохраняем ответ...' : submitting ? 'Формируем результат...' : 'Выберите один вариант ответа'}
+          </p>
+        </div>
+
+        <div className="progress-block">
+          <div className="progress-block__label">
+            <span>Прогресс</span>
+            <strong>{Math.round(progress)}%</strong>
+          </div>
+          <div className="progress">
+            <div className="progress__bar" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+
+        <div className="options">
+          {survey.likert_scale.map((option) => (
+            <button
+              className={selectedValue === option.value ? 'option option--active' : 'option'}
+              disabled={saving || submitting}
+              key={option.value}
+              onClick={() => void onSelect(question.code, option.value)}
+              type="button"
+            >
+              <span className="option__value">{option.value}</span>
+              <span className="option__content">
+                <strong>{option.label}</strong>
+                <small>Оценка {option.value} из 4</small>
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="questionnaire-card__footer">
           <button
-            className={selectedValue === option.value ? 'option option--active' : 'option'}
-            disabled={saving || submitting}
-            key={option.value}
-            onClick={() => void onSelect(question.code, option.value)}
+            className="button button--ghost"
+            disabled={currentIndex === 0 || saving || submitting}
+            onClick={onBack}
             type="button"
           >
-            <strong>{option.value}</strong>
-            <span>{option.label}</span>
+            Назад
           </button>
-        ))}
-      </div>
-
-      <div className="stack-row">
-        <button className="button button--ghost" disabled={currentIndex === 0 || saving || submitting} onClick={onBack} type="button">
-          Назад
-        </button>
-        <button
-          className="button"
-          disabled={selectedValue === undefined || submitting}
-          onClick={() => void onSubmit()}
-          type="button"
-        >
-          {isLast ? 'Завершить' : 'Далее'}
-        </button>
-      </div>
-
-      <div className="meta-grid">
-        <div className="meta-card">
-          <span>Ответов сохранено</span>
-          <strong>{responseSession?.answered_count ?? Object.keys(answers).length}</strong>
+          <button
+            className="button"
+            disabled={selectedValue === undefined || submitting}
+            onClick={() => void onSubmit()}
+            type="button"
+          >
+            {isLast ? 'Завершить опрос' : 'Следующий вопрос'}
+          </button>
         </div>
-        <div className="meta-card">
-          <span>Осталось</span>
-          <strong>{remaining}</strong>
-        </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

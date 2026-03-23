@@ -13,6 +13,7 @@ export function AuthPanel({ onGuest, onLogin, onRegister }: AuthPanelProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const isSubmitDisabled = busy || username.trim().length < 3 || password.length < 8;
 
   const submit = async () => {
     setBusy(true);
@@ -63,6 +64,15 @@ export function AuthPanel({ onGuest, onLogin, onRegister }: AuthPanelProps) {
         </button>
       </div>
 
+      <div className="auth-card__intro">
+        <h2>{mode === 'login' ? 'Добро пожаловать' : 'Создание аккаунта'}</h2>
+        <p>
+          {mode === 'login'
+            ? 'Используйте имя пользователя и пароль, чтобы открыть личный кабинет и историю результатов.'
+            : 'Создайте аккуратный профиль без лишних полей и начните опрос в одном потоке.'}
+        </p>
+      </div>
+
       <label className="field">
         <span>Имя пользователя</span>
         <input
@@ -86,7 +96,7 @@ export function AuthPanel({ onGuest, onLogin, onRegister }: AuthPanelProps) {
       {error ? <div className="notice notice--error">{error}</div> : null}
 
       <div className="stack-row">
-        <button className="button" disabled={busy} onClick={() => void submit()} type="button">
+        <button className="button" disabled={isSubmitDisabled} onClick={() => void submit()} type="button">
           {mode === 'login' ? 'Войти' : 'Создать аккаунт'}
         </button>
         <button className="button button--secondary" disabled={busy} onClick={() => void handleGuest()} type="button">

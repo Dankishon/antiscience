@@ -18,6 +18,7 @@ from app.schemas.response import (
     ResponseSessionRead,
     ResultRead,
 )
+from app.services.results import build_result_read
 from app.services.scoring import compute_result
 
 router = APIRouter(prefix="/responses", tags=["responses"])
@@ -122,8 +123,7 @@ def submit_response(
 ) -> ResultRead:
     response_session = _load_owned_session(db, session_id, current_user.id)
     if response_session.status == "submitted" and response_session.computed_result:
-        payload = response_session.computed_result.result_payload
-        return ResultRead(**payload, response_session_id=response_session.id, submitted_at=response_session.submitted_at)
+        return build_result_read(response_session)
 
     answers = {answer.question_code: answer.value for answer in response_session.answers}
     try:
@@ -167,8 +167,9 @@ def submit_response(
     db.commit()
 
     refreshed = _load_owned_session(db, response_session.id, current_user.id)
-    payload = refreshed.computed_result.result_payload if refreshed.computed_result else result_payload
-    return ResultRead(**payload, response_session_id=refreshed.id, submitted_at=refreshed.submitted_at)
+    if refreshed.computed_result:
+        return build_result_read(refreshed)
+    return ResultRead(**result_payload, response_session_id=refreshed.id, submitted_at=refreshed.submitted_at)
 
 
 @router.get("/{session_id}/result", response_model=ResultRead)
@@ -181,5 +182,4 @@ def get_result(
     if not response_session.computed_result:
         raise HTTPException(status_code=404, detail="Result is not available yet")
 
-    payload = response_session.computed_result.result_payload
-    return ResultRead(**payload, response_session_id=response_session.id, submitted_at=response_session.submitted_at)
+    return build_result_read(response_session)

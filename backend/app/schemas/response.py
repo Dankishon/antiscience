@@ -87,3 +87,66 @@ class ResultRead(BaseModel):
     scale_scores: list[ScaleScoreRead]
     interpretation: InterpretationRead
     submitted_at: datetime | None
+
+
+class ResultHistoryItemRead(BaseModel):
+    id: str
+    response_session_id: str
+    is_guest_session: bool
+    main_flower: MainFlowerRead
+    mean: float
+    standard_deviation: float
+    tie_break_strategy: str
+    submitted_at: datetime | None
+    created_at: datetime
+
+
+class StoredResultRead(ResultRead):
+    id: str
+    is_guest_session: bool
+    created_at: datetime
+
+
+class DeleteResultResponse(BaseModel):
+    ok: bool
+
+
+class AnalyticsFlowerDistributionRead(BaseModel):
+    flower_code: str
+    flower_title: str
+    flower_symbol: str | None
+    count: int
+
+
+class AnalyticsScaleAverageRead(BaseModel):
+    scale_code: str
+    scale_title: str
+    short_code: str
+    average_raw_score: float
+
+
+class AnalyticsSummaryRead(BaseModel):
+    total_attempts: int
+    completed_tests: int
+    main_flower_distribution: list[AnalyticsFlowerDistributionRead]
+    average_raw_scores: list[AnalyticsScaleAverageRead]
+
+
+class AnalyticsExportRowRead(BaseModel):
+    computed_result_id: str
+    response_session_id: str
+    user_id: str
+    username: str
+    is_guest_session: bool
+    survey_code: str
+    survey_version: int
+    main_flower_code: str
+    main_flower_title: str
+    tie_break_strategy: str
+    mean: float
+    standard_deviation: float
+    submitted_at: datetime | None
+    scale_code: str
+    scale_title: str
+    raw_score: int
+    z_score: float

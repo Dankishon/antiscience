@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.models.survey import Flower, Question, Survey
+from app.models.survey import Flower, FlowerInterpretation, FlowerTrait, Question, Survey, SurveyScale
 
 
 @lru_cache
@@ -24,48 +24,81 @@ def load_interpretation_seed() -> dict:
 
 
 def ensure_seed_data(db: Session) -> None:
-    payload = load_question_seed()
-    survey_meta = payload["survey"]
+    question_payload = load_question_seed()
+    interpretation_payload = load_interpretation_seed()
+    survey_meta = question_payload["survey"]
 
-    existing = db.scalar(
+    survey = db.scalar(
         select(Survey).where(
             Survey.code == survey_meta["code"],
             Survey.version == survey_meta["version"],
         )
     )
-    if existing:
-        return
-
-    survey = Survey(
-        code=survey_meta["code"],
-        version=survey_meta["version"],
-        title=survey_meta["title"],
-        description=survey_meta["description"],
-        instruction=survey_meta["instruction"],
-        algorithm_version=survey_meta["algorithmVersion"],
-        source_document=survey_meta.get("sourceDocument"),
-    )
-    db.add(survey)
-    db.flush()
-
-    flowers_by_scale: dict[str, Flower] = {}
-    for item in payload["flowers"]:
-        flower = Flower(
-            survey_id=survey.id,
-            code=item["code"],
-            title=item["title"],
-            symbol=item.get("symbol"),
-            scale_code=item["scaleCode"],
-            sort_order=item["sortOrder"],
-            meaning=item.get("meaning"),
-            rationale=item.get("rationale"),
+    if not survey:
+        survey = Survey(
+            code=survey_meta["code"],
+            version=survey_meta["version"],
+            title=survey_meta["title"],
+            description=survey_meta["description"],
+            instruction=survey_meta["instruction"],
+            algorithm_version=survey_meta["algorithmVersion"],
+            source_document=survey_meta.get("sourceDocument"),
         )
-        db.add(flower)
-        flowers_by_scale[flower.scale_code] = flower
+        db.add(survey)
+        db.flush()
+
+    existing_flowers = {
+        flower.code: flower
+        for flower in db.scalars(select(Flower).where(Flower.survey_id == survey.id)).all()
+    }
+    flowers_by_scale: dict[str, Flower] = {flower.scale_code: flower for flower in existing_flowers.values()}
+    for item in question_payload["flowers"]:
+        flower = existing_flowers.get(item["code"])
+        if not flower:
+            flower = Flower(
+                survey_id=survey.id,
+                code=item["code"],
+                title=item["title"],
+                symbol=item.get("symbol"),
+                scale_code=item["scaleCode"],
+                sort_order=item["sortOrder"],
+                meaning=item.get("meaning"),
+                rationale=item.get("rationale"),
+            )
+            db.add(flower)
+            existing_flowers[flower.code] = flower
+        flowers_by_scale[item["scaleCode"]] = flower
 
     db.flush()
 
-    for item in payload["questions"]:
+    existing_scales = {
+        scale.code: scale
+        for scale in db.scalars(select(SurveyScale).where(SurveyScale.survey_id == survey.id)).all()
+    }
+    for item in question_payload["scales"]:
+        if item["code"] in existing_scales:
+            continue
+        db.add(
+            SurveyScale(
+                survey_id=survey.id,
+                code=item["code"],
+                title=item["title"],
+                short_code=item["shortCode"],
+                flower_code=item["flowerCode"],
+                min_score=item["minScore"],
+                max_score=item["maxScore"],
+                sort_order=item["sortOrder"],
+                seed_payload=item.get("metadata"),
+            )
+        )
+
+    existing_questions = {
+        question.code: question
+        for question in db.scalars(select(Question).where(Question.survey_id == survey.id)).all()
+    }
+    for item in question_payload["questions"]:
+        if item["code"] in existing_questions:
+            continue
         flower = flowers_by_scale[item["scaleCode"]]
         db.add(
             Question(
@@ -82,5 +115,68 @@ def ensure_seed_data(db: Session) -> None:
                 is_required=item.get("required", True),
             )
         )
+
+    existing_interpretations = {
+        (item.flower_code, item.entry_key): item
+        for item in db.scalars(select(FlowerInterpretation).where(FlowerInterpretation.survey_id == survey.id)).all()
+    }
+    existing_traits = {
+        (item.flower_code, item.code): item
+        for item in db.scalars(select(FlowerTrait).where(FlowerTrait.survey_id == survey.id)).all()
+    }
+    for profile in interpretation_payload["profiles"]:
+        flower_code = profile["flowerCode"]
+        profile_block = profile["profileInterpretation"]
+        profile_key = (flower_code, "profile")
+        if profile_key not in existing_interpretations:
+            db.add(
+                FlowerInterpretation(
+                    survey_id=survey.id,
+                    flower_code=flower_code,
+                    entry_key="profile",
+                    entry_type="profile",
+                    z_level_code=None,
+                    title=profile_block["title"],
+                    summary=profile_block["summary"],
+                    source_header=profile_block.get("narrative", {}).get("sourceHeader"),
+                    source_range=None,
+                    sort_order=0,
+                )
+            )
+
+        for entry in profile["zInterpretations"]:
+            entry_key = (flower_code, entry["zLevelCode"])
+            if entry_key in existing_interpretations:
+                continue
+            db.add(
+                FlowerInterpretation(
+                    survey_id=survey.id,
+                    flower_code=flower_code,
+                    entry_key=entry["zLevelCode"],
+                    entry_type="z_level",
+                    z_level_code=entry["zLevelCode"],
+                    title=entry["title"],
+                    summary=entry["summary"],
+                    source_header=None,
+                    source_range=entry.get("sourceRange"),
+                    sort_order=entry["sortOrder"],
+                )
+            )
+
+        for trait in profile.get("traits", []):
+            trait_key = (flower_code, trait["code"])
+            if trait_key in existing_traits:
+                continue
+            db.add(
+                FlowerTrait(
+                    survey_id=survey.id,
+                    flower_code=flower_code,
+                    code=trait["code"],
+                    label=trait["label"],
+                    description=trait["description"],
+                    polarity=trait["polarity"],
+                    sort_order=trait["sortOrder"],
+                )
+            )
 
     db.commit()
