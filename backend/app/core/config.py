@@ -11,7 +11,7 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 class Settings(BaseSettings):
     app_name: str = "Flower Profile API"
     secret_key: str = "change-me"
-    access_token_expire_minutes: int = 60 * 24 * 7
+    session_ttl_minutes: int = 60 * 24 * 7
     cookie_name: str = "flower_profile_session"
     postgres_db: str = "flower_profile"
     postgres_user: str = "flower"

@@ -64,10 +64,10 @@ export function AuthPanel({ onGuest, onLogin, onRegister }: AuthPanelProps) {
       </div>
 
       <label className="field">
-        <span>Username</span>
+        <span>Имя пользователя</span>
         <input
           onChange={(event) => setUsername(event.target.value)}
-          placeholder="username"
+          placeholder="Введите имя пользователя"
           type="text"
           value={username}
         />

@@ -2,6 +2,7 @@ export interface User {
   id: string;
   username: string;
   is_guest: boolean;
+  role: string;
   created_at: string;
 }
 
@@ -108,50 +109,50 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => ({ detail: 'Request failed' }))) as { detail?: string };
-    throw new Error(payload.detail ?? 'Request failed');
+    const payload = (await response.json().catch(() => ({ detail: 'Не удалось выполнить запрос' }))) as { detail?: string };
+    throw new Error(payload.detail ?? 'Не удалось выполнить запрос');
   }
 
   return (await response.json()) as T;
 }
 
 export const api = {
-  getCurrentUser: () => request<AuthResponse>('/api/auth/me'),
+  getCurrentUser: () => request<AuthResponse>('/api/v1/auth/me'),
   register: (payload: { username: string; password: string }) =>
-    request<AuthResponse>('/api/auth/register', {
+    request<AuthResponse>('/api/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
   login: (payload: { username: string; password: string }) =>
-    request<AuthResponse>('/api/auth/login', {
+    request<AuthResponse>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
   guestLogin: () =>
-    request<AuthResponse>('/api/auth/guest', {
+    request<AuthResponse>('/api/v1/auth/guest', {
       method: 'POST',
       body: JSON.stringify({}),
     }),
   logout: () =>
-    request<{ ok: boolean }>('/api/auth/logout', {
+    request<{ ok: boolean }>('/api/v1/auth/logout', {
       method: 'POST',
       body: JSON.stringify({}),
     }),
-  getActiveSurvey: () => request<ActiveSurvey>('/api/survey/active'),
+  getActiveSurvey: () => request<ActiveSurvey>('/api/v1/survey/active'),
   createResponse: () =>
-    request<ResponseSession>('/api/responses', {
+    request<ResponseSession>('/api/v1/responses', {
       method: 'POST',
       body: JSON.stringify({}),
     }),
   saveAnswer: (sessionId: string, answer: { question_code: string; value: number }) =>
-    request<ResponseSession>(`/api/responses/${sessionId}/answers`, {
+    request<ResponseSession>(`/api/v1/responses/${sessionId}/answers`, {
       method: 'PUT',
       body: JSON.stringify({ answers: [answer] }),
     }),
   submitResponse: (sessionId: string) =>
-    request<ResultPayload>(`/api/responses/${sessionId}/submit`, {
+    request<ResultPayload>(`/api/v1/responses/${sessionId}/submit`, {
       method: 'POST',
       body: JSON.stringify({}),
     }),
-  getResult: (sessionId: string) => request<ResultPayload>(`/api/responses/${sessionId}/result`),
+  getResult: (sessionId: string) => request<ResultPayload>(`/api/v1/responses/${sessionId}/result`),
 };

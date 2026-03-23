@@ -6,40 +6,14 @@ import { ResultView } from './components/ResultView';
 import { Shell } from './components/Shell';
 import { api, type ActiveSurvey, type ResponseSession, type ResultPayload, type User } from './lib/api';
 
-function HomePage({ user }: { user: User | null }) {
-  return (
-    <div className="page-grid">
-      <section className="card card--hero">
-        <span className="eyebrow">Психологический опросник</span>
-        <h1>Соберите цветочный профиль по 30 вопросам и получите подробный внутренний рисунок.</h1>
-        <p>
-          Приложение работает на React + Vite, FastAPI, PostgreSQL и проходит через единый Nginx reverse proxy.
-        </p>
-        <div className="stack-row">
-          <Link className="button" to={user ? '/questionnaire' : '/auth'}>
-            {user ? 'Перейти к опросу' : 'Войти в систему'}
-          </Link>
-          <Link className="button button--secondary" to="/questionnaire">
-            Открыть опрос
-          </Link>
-        </div>
-      </section>
-      <section className="card">
-        <span className="eyebrow">Что внутри</span>
-        <ul className="list">
-          <li>Вход по username и password без внешних идентификационных провайдеров.</li>
-          <li>Гостевой вход для быстрого старта без отдельной регистрации.</li>
-          <li>Расчёт результата по 10 шкалам и 30 вопросам на сервере.</li>
-        </ul>
-      </section>
-    </div>
-  );
-}
-
 function AuthPage({
+  user,
   onAuthChange,
+  onLogout,
 }: {
+  user: User | null;
   onAuthChange: (user: User | null) => void;
+  onLogout: () => Promise<void>;
 }) {
   const navigate = useNavigate();
 
@@ -63,12 +37,44 @@ function AuthPage({
     navigate('/questionnaire');
   };
 
+  const handleLogout = async () => {
+    await onLogout();
+    navigate('/');
+  };
+
+  if (user) {
+    const roleLabel = user.role === 'guest' ? 'гость' : 'пользователь';
+
+    return (
+      <div className="page-grid page-grid--narrow">
+        <section className="card card--hero">
+          <span className="eyebrow">Текущая сессия</span>
+          <h1>{user.is_guest ? 'Гостевой вход активен' : 'Вы вошли в систему'}</h1>
+          <p>
+            Пользователь: <strong>{user.username}</strong>
+          </p>
+          <p>
+            Роль: <strong>{roleLabel}</strong>
+          </p>
+          <div className="stack-row">
+            <Link className="button" to="/questionnaire">
+              Перейти к опросу
+            </Link>
+            <button className="button button--secondary" onClick={() => void handleLogout()} type="button">
+              Выйти
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="page-grid page-grid--narrow">
-      <section className="card">
+      <section className="card card--hero">
         <span className="eyebrow">Авторизация</span>
-        <h1>Вход в систему</h1>
-        <p>Используйте username и пароль или создайте гостевую сессию.</p>
+        <h1>Войдите в систему или создайте новый аккаунт</h1>
+        <p>На первом экране доступны вход по имени пользователя, регистрация и гостевой вход.</p>
       </section>
       <AuthPanel onGuest={handleGuest} onLogin={handleLogin} onRegister={handleRegister} />
     </div>
@@ -125,8 +131,8 @@ function QuestionnairePage({ user }: { user: User | null }) {
     return (
       <section className="card">
         <h1>Нужна авторизация</h1>
-        <p>Чтобы начать опрос, войдите по username и password или создайте гостевую сессию.</p>
-        <Link className="button" to="/auth">
+        <p>Чтобы начать опрос, войдите по имени пользователя и паролю или создайте гостевую сессию.</p>
+        <Link className="button" to="/">
           Перейти ко входу
         </Link>
       </section>
@@ -276,8 +282,8 @@ export function App() {
         <section className="card"><p>Проверяем сессию...</p></section>
       ) : (
         <Routes>
-          <Route element={<HomePage user={user} />} path="/" />
-          <Route element={<AuthPage onAuthChange={setUser} />} path="/auth" />
+          <Route element={<AuthPage onAuthChange={setUser} onLogout={handleLogout} user={user} />} path="/" />
+          <Route element={<AuthPage onAuthChange={setUser} onLogout={handleLogout} user={user} />} path="/auth" />
           <Route element={<QuestionnairePage user={user} />} path="/questionnaire" />
           <Route element={<ResultPage />} path="/result/:responseId" />
         </Routes>

@@ -52,7 +52,7 @@ PostgreSQL будет доступен на:
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
 - `SECRET_KEY`
-- `ACCESS_TOKEN_EXPIRE_MINUTES`
+- `SESSION_TTL_MINUTES`
 - `APP_PORT`
 
 `DATABASE_URL` можно не задавать вручную: backend соберёт DSN из `POSTGRES_*`.
@@ -74,16 +74,16 @@ docker compose up --build
 
 ## Backend API
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `POST /api/auth/guest`
-- `POST /api/auth/logout`
-- `GET /api/auth/me`
-- `GET /api/survey/active`
-- `POST /api/responses`
-- `PUT /api/responses/{session_id}/answers`
-- `POST /api/responses/{session_id}/submit`
-- `GET /api/responses/{session_id}/result`
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/guest`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
+- `GET /api/v1/survey/active`
+- `POST /api/v1/responses`
+- `PUT /api/v1/responses/{session_id}/answers`
+- `POST /api/v1/responses/{session_id}/submit`
+- `GET /api/v1/responses/{session_id}/result`
 - `GET /api/health`
 
 ## Итоговое дерево

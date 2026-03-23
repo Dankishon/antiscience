@@ -16,9 +16,9 @@ export function Shell({ children, user, onLogout }: ShellProps) {
           Цветочный профиль
         </Link>
         <nav className="nav">
-          <NavLink to="/">Главная</NavLink>
+          <NavLink to="/">Авторизация</NavLink>
           <NavLink to="/questionnaire">Опрос</NavLink>
-          <NavLink to="/auth">{user ? user.username : 'Вход'}</NavLink>
+          <NavLink to="/">{user ? user.username : 'Вход'}</NavLink>
         </nav>
         {user ? (
           <button className="button button--ghost" onClick={() => void onLogout()} type="button">

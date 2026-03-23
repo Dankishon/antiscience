@@ -16,9 +16,9 @@ class RegisterRequest(BaseModel):
     @classmethod
     def validate_username(cls, value: str) -> str:
         if not USERNAME_PATTERN.match(value):
-            raise ValueError("username can contain only letters, numbers, hyphen, and underscore")
+            raise ValueError("Имя пользователя может содержать только буквы, цифры, дефис и нижнее подчёркивание")
         if value.startswith("guest-"):
-            raise ValueError("username prefix guest- is reserved")
+            raise ValueError("Префикс guest- зарезервирован для гостевых входов")
         return value.lower()
 
 
@@ -38,6 +38,7 @@ class UserRead(BaseModel):
     id: str
     username: str
     is_guest: bool
+    role: str
     created_at: datetime
 
 

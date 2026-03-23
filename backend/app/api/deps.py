@@ -1,29 +1,45 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import Cookie, Depends, HTTPException, status
-from jwt import InvalidTokenError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.security import decode_access_token
+from app.core.security import hash_session_token
 from app.db.session import get_db
-from app.models.user import User
+from app.models.user import AuthSession, User
+
+
+def get_current_auth_session(
+    db: Session = Depends(get_db),
+    token: str | None = Cookie(default=None, alias=get_settings().cookie_name),
+) -> AuthSession:
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Требуется авторизация")
+
+    session_token_hash = hash_session_token(token)
+    auth_session = db.scalar(
+        select(AuthSession).where(
+            AuthSession.session_token_hash == session_token_hash,
+            AuthSession.expires_at > datetime.now(timezone.utc),
+        )
+    )
+    if not auth_session:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия недействительна")
+
+    auth_session.last_seen_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(auth_session)
+    return auth_session
 
 
 def get_current_user(
+    auth_session: AuthSession = Depends(get_current_auth_session),
     db: Session = Depends(get_db),
-    token: str | None = Cookie(default=None, alias=get_settings().cookie_name),
 ) -> User:
-    if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
-
-    try:
-        payload = decode_access_token(token)
-    except InvalidTokenError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session") from exc
-
-    user = db.scalar(select(User).where(User.id == payload["sub"]))
+    user = db.scalar(select(User).where(User.id == auth_session.user_id))
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден")
     return user

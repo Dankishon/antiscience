@@ -32,9 +32,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth_router, prefix="/api")
-app.include_router(survey_router, prefix="/api")
-app.include_router(responses_router, prefix="/api")
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(survey_router, prefix="/api/v1")
+app.include_router(responses_router, prefix="/api/v1")
 
 
 @app.get("/api/health")
@@ -44,3 +44,8 @@ def health() -> dict:
         "status": "ok",
         "database": "postgresql",
     }
+
+
+@app.get("/api/v1/health")
+def health_v1() -> dict:
+    return health()
