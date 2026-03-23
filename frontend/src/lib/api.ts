@@ -94,6 +94,35 @@ export interface ResultPayload {
   submitted_at: string | null;
 }
 
+export interface MyResultSummary {
+  id: string;
+  response_session_id: string;
+  is_guest_session: boolean;
+  main_flower: ResultPayload['main_flower'];
+  mean: number;
+  standard_deviation: number;
+  tie_break_strategy: string;
+  submitted_at: string | null;
+  created_at: string;
+}
+
+export interface AnalyticsSummary {
+  total_attempts: number;
+  completed_tests: number;
+  main_flower_distribution: Array<{
+    flower_code: string;
+    flower_title: string;
+    flower_symbol: string | null;
+    count: number;
+  }>;
+  average_raw_scores: Array<{
+    scale_code: string;
+    scale_title: string;
+    short_code: string;
+    average_raw_score: number;
+  }>;
+}
+
 type AuthResponse = {
   user: User;
 };
@@ -155,4 +184,10 @@ export const api = {
       body: JSON.stringify({}),
     }),
   getResult: (sessionId: string) => request<ResultPayload>(`/api/v1/responses/${sessionId}/result`),
+  getMyResults: () => request<MyResultSummary[]>('/api/v1/me/results'),
+  deleteMyResult: (resultId: string) =>
+    request<{ ok: boolean }>(`/api/v1/me/results/${resultId}`, {
+      method: 'DELETE',
+    }),
+  getAnalyticsSummary: () => request<AnalyticsSummary>('/api/v1/admin/analytics/summary'),
 };

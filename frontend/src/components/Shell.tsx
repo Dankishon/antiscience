@@ -26,7 +26,7 @@ export function Shell({ children, user, onLogout }: ShellProps) {
                 <NavLink to="/home">Главная</NavLink>
                 <NavLink to="/questionnaire">Опрос</NavLink>
                 <NavLink to="/results">История</NavLink>
-                {!user.is_guest ? <NavLink to="/admin/analytics">Аналитика</NavLink> : null}
+                {user.role === 'admin' ? <NavLink to="/admin/analytics">Аналитика</NavLink> : null}
               </>
             ) : (
               <NavLink to="/">Вход</NavLink>

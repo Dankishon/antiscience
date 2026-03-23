@@ -5,13 +5,15 @@ import { Modal } from './components/Modal';
 import { Questionnaire } from './components/Questionnaire';
 import { ResultView } from './components/ResultView';
 import { Shell } from './components/Shell';
-import { api, type ActiveSurvey, type ResponseSession, type ResultPayload, type User } from './lib/api';
 import {
-  clearResultHistory,
-  loadResultHistory,
-  saveResultHistoryEntry,
-  type StoredResult,
-} from './lib/resultHistory';
+  api,
+  type ActiveSurvey,
+  type AnalyticsSummary,
+  type MyResultSummary,
+  type ResponseSession,
+  type ResultPayload,
+  type User,
+} from './lib/api';
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('ru-RU', {
@@ -142,11 +144,43 @@ function AuthPage({
 }
 
 function HomePage({ user }: { user: User | null }) {
-  const [history, setHistory] = useState<StoredResult[]>([]);
+  const [history, setHistory] = useState<MyResultSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setHistory(loadResultHistory());
-  }, []);
+    if (!user) {
+      setHistory([]);
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    setError(null);
+
+    const load = async () => {
+      try {
+        const results = await api.getMyResults();
+        if (active) {
+          setHistory(results);
+        }
+      } catch (currentError) {
+        if (active) {
+          setError(currentError instanceof Error ? currentError.message : 'Не удалось загрузить историю');
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   if (!user) {
     return <AuthRequiredCard />;
@@ -181,7 +215,7 @@ function HomePage({ user }: { user: User | null }) {
         </div>
         <div className="metric-item">
           <span>Сохранённых результатов</span>
-          <strong>{history.length}</strong>
+          <strong>{loading ? '...' : history.length}</strong>
         </div>
         <div className="metric-item">
           <span>Активный опрос</span>
@@ -189,7 +223,17 @@ function HomePage({ user }: { user: User | null }) {
         </div>
       </section>
 
-      {latestResult ? (
+      {error ? <div className="notice notice--error">{error}</div> : null}
+
+      {loading ? (
+        <section className="card page-card page-card--centered">
+          <span className="eyebrow">История</span>
+          <h2>Подгружаем ваши сохранённые результаты</h2>
+          <p>Через мгновение здесь появится последний завершённый профиль.</p>
+        </section>
+      ) : null}
+
+      {!loading && latestResult ? (
         <section className="card page-card">
           <span className="eyebrow">Последний результат</span>
           <div className="summary-panel">
@@ -199,7 +243,7 @@ function HomePage({ user }: { user: User | null }) {
               </span>
               <div>
                 <h2>{latestResult.main_flower.flower_title}</h2>
-                <p>Сохранено {formatDate(latestResult.saved_at)}</p>
+                <p>Сохранено {formatDate(latestResult.submitted_at ?? latestResult.created_at)}</p>
               </div>
             </div>
 
@@ -223,25 +267,27 @@ function HomePage({ user }: { user: User | null }) {
             <Link className="button" to={`/result/${latestResult.response_session_id}`}>
               Открыть результат
             </Link>
-            {!user.is_guest ? (
+            {user.role === 'admin' ? (
               <Link className="button button--ghost" to="/admin/analytics">
                 Посмотреть аналитику
               </Link>
             ) : null}
           </div>
         </section>
-      ) : (
+      ) : null}
+
+      {!loading && !latestResult ? (
         <section className="card page-card">
           <span className="eyebrow">Результаты</span>
           <h2>После первого завершённого опроса здесь появится краткий обзор профиля</h2>
-          <p>Можно начать прямо сейчас и сохранить первый результат в локальной истории.</p>
+          <p>Можно начать прямо сейчас и сохранить первый результат в вашей личной истории.</p>
           <div className="stack-row">
             <Link className="button" to="/questionnaire">
               Перейти к вопросам
             </Link>
           </div>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -376,21 +422,61 @@ function QuestionnairePage({ user }: { user: User | null }) {
 }
 
 function ResultsHistoryPage({ user }: { user: User | null }) {
-  const [history, setHistory] = useState<StoredResult[]>([]);
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [history, setHistory] = useState<MyResultSummary[]>([]);
+  const [resultToDelete, setResultToDelete] = useState<MyResultSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setHistory(loadResultHistory());
-  }, []);
+    if (!user) {
+      setHistory([]);
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    setError(null);
+
+    const load = async () => {
+      try {
+        const results = await api.getMyResults();
+        if (active) {
+          setHistory(results);
+        }
+      } catch (currentError) {
+        if (active) {
+          setError(currentError instanceof Error ? currentError.message : 'Не удалось загрузить историю');
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   if (!user) {
     return <AuthRequiredCard />;
   }
 
-  const handleClear = () => {
-    clearResultHistory();
-    setHistory([]);
-    setConfirmClear(false);
+  const handleDelete = async () => {
+    if (!resultToDelete) {
+      return;
+    }
+
+    try {
+      await api.deleteMyResult(resultToDelete.id);
+      setHistory((current) => current.filter((entry) => entry.id !== resultToDelete.id));
+      setResultToDelete(null);
+    } catch (currentError) {
+      setError(currentError instanceof Error ? currentError.message : 'Не удалось удалить результат');
+    }
   };
 
   return (
@@ -399,31 +485,38 @@ function ResultsHistoryPage({ user }: { user: User | null }) {
         <section className="card card--hero page-card">
           <span className="eyebrow">История результатов</span>
           <h1>Все завершённые профили собраны в одном аккуратном списке</h1>
-          <p>История хранится локально в браузере и позволяет быстро вернуться к любому недавнему результату.</p>
+          <p>История хранится в вашем аккаунте и показывает только ваши завершённые прохождения.</p>
         </section>
 
-        {history.length > 0 ? (
+        {error ? <div className="notice notice--error">{error}</div> : null}
+
+        {loading ? (
+          <section className="card page-card page-card--centered">
+            <span className="eyebrow">История</span>
+            <h2>Подгружаем ваши результаты</h2>
+            <p>Через мгновение появится список завершённых прохождений.</p>
+          </section>
+        ) : null}
+
+        {!loading && history.length > 0 ? (
           <section className="card page-card">
             <div className="section-header">
               <div>
                 <span className="eyebrow">Список результатов</span>
                 <h2>{history.length} записей</h2>
               </div>
-              <button className="button button--ghost" onClick={() => setConfirmClear(true)} type="button">
-                Очистить историю
-              </button>
             </div>
 
             <div className="history-list">
               {history.map((entry) => (
-                <article className="history-item" key={entry.response_session_id}>
+                <article className="history-item" key={entry.id}>
                   <div className="history-item__flower">
                     <span className="result-symbol result-symbol--small">
                       {entry.main_flower.flower_symbol ?? '✿'}
                     </span>
                     <div>
                       <h3>{entry.main_flower.flower_title}</h3>
-                      <p>{formatDate(entry.saved_at)}</p>
+                      <p>{formatDate(entry.submitted_at ?? entry.created_at)}</p>
                     </div>
                   </div>
 
@@ -442,12 +535,21 @@ function ResultsHistoryPage({ user }: { user: User | null }) {
                     <Link className="button button--secondary" to={`/result/${entry.response_session_id}`}>
                       Открыть
                     </Link>
+                    <button
+                      className="button button--ghost"
+                      onClick={() => setResultToDelete(entry)}
+                      type="button"
+                    >
+                      Удалить
+                    </button>
                   </div>
                 </article>
               ))}
             </div>
           </section>
-        ) : (
+        ) : null}
+
+        {!loading && history.length === 0 ? (
           <section className="card page-card page-card--centered">
             <span className="eyebrow">История</span>
             <h2>Пока здесь тихо</h2>
@@ -458,17 +560,17 @@ function ResultsHistoryPage({ user }: { user: User | null }) {
               </Link>
             </div>
           </section>
-        )}
+        ) : null}
       </div>
 
-      {confirmClear ? (
+      {resultToDelete ? (
         <Modal
           cancelLabel="Оставить"
-          confirmLabel="Очистить"
-          description="История результатов будет удалена только из текущего браузера."
-          onCancel={() => setConfirmClear(false)}
-          onConfirm={handleClear}
-          title="Очистить локальную историю?"
+          confirmLabel="Удалить"
+          description={`Результат «${resultToDelete.main_flower.flower_title}» будет удалён только из вашей истории.`}
+          onCancel={() => setResultToDelete(null)}
+          onConfirm={() => void handleDelete()}
+          title="Удалить результат?"
         />
       ) : null}
     </>
@@ -476,22 +578,54 @@ function ResultsHistoryPage({ user }: { user: User | null }) {
 }
 
 function AdminAnalyticsPage({ user }: { user: User | null }) {
-  const [history, setHistory] = useState<StoredResult[]>([]);
+  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setHistory(loadResultHistory());
-  }, []);
+    if (!user || user.role !== 'admin') {
+      setSummary(null);
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    setError(null);
+
+    const load = async () => {
+      try {
+        const nextSummary = await api.getAnalyticsSummary();
+        if (active) {
+          setSummary(nextSummary);
+        }
+      } catch (currentError) {
+        if (active) {
+          setError(currentError instanceof Error ? currentError.message : 'Не удалось загрузить аналитику');
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   if (!user) {
     return <AuthRequiredCard />;
   }
 
-  if (user.is_guest) {
+  if (user.role !== 'admin') {
     return (
       <section className="card page-card page-card--centered">
         <span className="eyebrow">Аналитика</span>
-        <h1>Для гостевой сессии доступен только личный результат</h1>
-        <p>После входа в постоянный аккаунт здесь будет удобнее отслеживать накопленную историю профилей.</p>
+        <h1>Эта страница доступна только администратору</h1>
+        <p>Для обычного пользователя доступны личная история результатов и экран индивидуального профиля.</p>
         <div className="stack-row">
           <Link className="button" to="/results">
             Открыть историю
@@ -501,58 +635,48 @@ function AdminAnalyticsPage({ user }: { user: User | null }) {
     );
   }
 
-  const flowerStats = history.reduce<Record<string, { count: number; symbol: string | null }>>((accumulator, entry) => {
-    const key = entry.main_flower.flower_title;
-    const current = accumulator[key] ?? { count: 0, symbol: entry.main_flower.flower_symbol };
-    accumulator[key] = {
-      count: current.count + 1,
-      symbol: current.symbol,
-    };
-    return accumulator;
-  }, {});
-  const flowerDistribution = Object.entries(flowerStats)
-    .map(([title, values]) => ({
-      title,
-      count: values.count,
-      symbol: values.symbol,
-    }))
-    .sort((left, right) => right.count - left.count);
-  const averageMean = history.length
-    ? history.reduce((sum, entry) => sum + entry.mean, 0) / history.length
-    : 0;
-  const averageDeviation = history.length
-    ? history.reduce((sum, entry) => sum + entry.standard_deviation, 0) / history.length
-    : 0;
+  const flowerDistribution = summary?.main_flower_distribution ?? [];
+  const averageRawScores = summary?.average_raw_scores ?? [];
   const maxDistribution = flowerDistribution[0]?.count ?? 1;
 
   return (
     <div className="page-grid">
       <section className="card card--hero page-card">
         <span className="eyebrow">Аналитика</span>
-        <h1>Спокойная сводка по накопленной истории результатов</h1>
-        <p>Здесь собраны краткие метрики и распределение лидирующих цветков по сохранённым прохождениям.</p>
+        <h1>Спокойная сводка по сохранённым прохождениям всех пользователей</h1>
+        <p>Здесь собраны реальные метрики из базы данных: завершённые тесты, распределение лидирующих цветков и шкалы.</p>
       </section>
+
+      {error ? <div className="notice notice--error">{error}</div> : null}
 
       <section className="card card--soft dashboard-grid">
         <div className="metric-item">
-          <span>Завершённых профилей</span>
-          <strong>{history.length}</strong>
+          <span>Всего прохождений</span>
+          <strong>{loading ? '...' : summary?.total_attempts ?? 0}</strong>
         </div>
         <div className="metric-item">
-          <span>Среднее по M</span>
-          <strong>{averageMean.toFixed(2)}</strong>
+          <span>Завершённых тестов</span>
+          <strong>{loading ? '...' : summary?.completed_tests ?? 0}</strong>
         </div>
         <div className="metric-item">
-          <span>Среднее по SD</span>
-          <strong>{averageDeviation.toFixed(2)}</strong>
+          <span>Шкал в аналитике</span>
+          <strong>{loading ? '...' : averageRawScores.length}</strong>
         </div>
         <div className="metric-item">
           <span>Частый ведущий цветок</span>
-          <strong>{flowerDistribution[0]?.title ?? 'Пока нет данных'}</strong>
+          <strong>{loading ? '...' : flowerDistribution[0]?.flower_title ?? 'Пока нет данных'}</strong>
         </div>
       </section>
 
-      {history.length > 0 ? (
+      {loading ? (
+        <section className="card page-card page-card--centered">
+          <span className="eyebrow">Аналитика</span>
+          <h2>Загружаем сводку</h2>
+          <p>Собираем агрегаты по прохождениям и шкалам из базы данных.</p>
+        </section>
+      ) : null}
+
+      {!loading && flowerDistribution.length > 0 ? (
         <section className="card page-card">
           <div className="section-header">
             <div>
@@ -563,10 +687,10 @@ function AdminAnalyticsPage({ user }: { user: User | null }) {
 
           <div className="distribution-list">
             {flowerDistribution.map((item) => (
-              <div className="distribution-row" key={item.title}>
+              <div className="distribution-row" key={item.flower_code}>
                 <div className="distribution-row__label">
                   <strong>
-                    {item.symbol} {item.title}
+                    {item.flower_symbol} {item.flower_title}
                   </strong>
                   <span>{item.count} профилей</span>
                 </div>
@@ -577,13 +701,42 @@ function AdminAnalyticsPage({ user }: { user: User | null }) {
             ))}
           </div>
         </section>
-      ) : (
+      ) : null}
+
+      {!loading && averageRawScores.length > 0 ? (
+        <section className="card page-card">
+          <div className="section-header">
+            <div>
+              <span className="eyebrow">Шкалы</span>
+              <h2>Средние сырые значения</h2>
+            </div>
+          </div>
+
+          <div className="distribution-list">
+            {averageRawScores.map((item) => (
+              <div className="distribution-row" key={item.scale_code}>
+                <div className="distribution-row__label">
+                  <strong>{item.scale_title}</strong>
+                  <span>
+                    {item.short_code} · {item.average_raw_score.toFixed(2)}
+                  </span>
+                </div>
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: `${(item.average_raw_score / 12) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {!loading && flowerDistribution.length === 0 && averageRawScores.length === 0 ? (
         <section className="card page-card page-card--centered">
           <span className="eyebrow">Аналитика</span>
           <h2>Сводка появится после первых завершённых опросов</h2>
           <p>Когда в истории накопятся результаты, здесь появятся аккуратные метрики и распределение профилей.</p>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -604,7 +757,6 @@ function ResultPage() {
         const payload = await api.getResult(responseId);
         if (active) {
           setResult(payload);
-          saveResultHistoryEntry(payload);
         }
       } catch (currentError) {
         if (active) {
