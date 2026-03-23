@@ -1,204 +1,142 @@
-# flower-survey
+# Цветочный профиль
 
-Monorepo scaffold for a survey platform with:
+Проект переведён на целевую production-архитектуру:
 
-- `apps/frontend` on Next.js (`3000`)
-- `apps/backend` on NestJS (`4000`)
-- `packages/shared` for shared TypeScript contracts
-- PostgreSQL in Docker (`5432`)
+- `frontend` — React + Vite
+- `backend` — Python + FastAPI
+- `postgres` — PostgreSQL
+- `nginx` — reverse proxy
 
-## Structure
+## Контейнеры
 
-```text
-apps/
-  backend/
-  frontend/
-packages/
-  shared/
-docker-compose.yml
-```
+- `frontend` собирает статический React-клиент
+- `backend` запускает FastAPI через `gunicorn + uvicorn workers`
+- `postgres` хранит пользователей, сессии ответов и результаты
+- `nginx` отдаёт frontend и проксирует `/api/*` в backend
 
-## Environment
+## Что реализовано
 
-Copy the example file and adjust secrets as needed:
+- авторизация по `username + password`
+- отдельный гостевой вход
+- активный опросник на 30 вопросов
+- расчёт цветочного профиля на backend
+- хранение пользователей, ответов и результатов в PostgreSQL
+- единая точка входа через Nginx
+
+## Быстрый старт
+
+1. Скопируйте пример окружения:
 
 ```bash
 cp .env.example .env
 ```
 
-Required variables:
+2. Запустите стек:
 
+```bash
+docker compose up --build
+```
+
+Приложение будет доступно на:
+
+- `http://localhost:8080`
+
+PostgreSQL будет доступен на:
+
+- `localhost:5432`
+
+## Основные переменные
+
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
 - `DATABASE_URL`
-- `JWT_SECRET`
-- `CORS_ORIGINS`
-- `OAUTH_CLIENT_ID`
-- `OAUTH_CLIENT_SECRET`
-- `OAUTH_CALLBACK_URL`
+- `SECRET_KEY`
+- `ACCESS_TOKEN_EXPIRE_MINUTES`
+- `APP_PORT`
 
-## Install
+`DATABASE_URL` можно не задавать вручную: backend соберёт DSN из `POSTGRES_*`.
 
-```bash
-npm install
-```
+## Управление стеком
 
-## Run with Docker
-
-Start PostgreSQL and Adminer:
+Остановить контейнеры:
 
 ```bash
-docker compose up -d postgres adminer
+docker compose down
 ```
 
-Adminer will be available at `http://localhost:8080`.
-
-## Prisma
-
-The PostgreSQL schema lives in `prisma/schema.prisma`, Prisma CLI config is in `prisma.config.ts`,
-and the first migration is stored in `prisma/migrations`.
+Пересоздать базу данных с чистого состояния:
 
 ```bash
-npm run prisma:validate
-npm run prisma:generate
-npm run prisma:migrate:dev
-npm run db:seed
+docker compose down -v
+docker compose up --build
 ```
 
-For CI or production deploys:
+## Backend API
 
-```bash
-npm run prisma:migrate:deploy
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/guest`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `GET /api/survey/active`
+- `POST /api/responses`
+- `PUT /api/responses/{session_id}/answers`
+- `POST /api/responses/{session_id}/submit`
+- `GET /api/responses/{session_id}/result`
+- `GET /api/health`
+
+## Итоговое дерево
+
+```text
+.
+├── .dockerignore
+├── .editorconfig
+├── .env.example
+├── .gitignore
+├── README.md
+├── backend
+│   ├── Dockerfile
+│   ├── alembic
+│   │   ├── env.py
+│   │   └── versions
+│   │       └── 202603230001_initial_schema.py
+│   ├── alembic.ini
+│   ├── app
+│   │   ├── api
+│   │   ├── core
+│   │   ├── db
+│   │   ├── models
+│   │   ├── schemas
+│   │   ├── services
+│   │   ├── main.py
+│   │   └── seed_data.py
+│   ├── entrypoint.sh
+│   └── requirements.txt
+├── docker-compose.yml
+├── frontend
+│   ├── Dockerfile
+│   ├── default.conf
+│   ├── index.html
+│   ├── package.json
+│   ├── src
+│   │   ├── components
+│   │   ├── lib
+│   │   ├── App.tsx
+│   │   ├── main.tsx
+│   │   └── styles.css
+│   ├── tsconfig.json
+│   └── vite.config.ts
+├── nginx
+│   ├── Dockerfile
+│   └── default.conf
+├── seeds
+│   ├── interps.v1.json
+│   └── questions.v1.json
 ```
 
-## Development
+## Примечания
 
-Run the full monorepo:
-
-```bash
-npm run dev
-```
-
-Or run services separately:
-
-```bash
-npm run dev:frontend
-npm run dev:backend
-npm run dev:shared
-```
-
-Useful endpoints:
-
-- Frontend: `http://localhost:3000`
-- Backend health: `http://localhost:4000/api/health`
-- Backend metrics: `http://localhost:4000/api/metrics`
-- PostgreSQL: `localhost:5432`
-
-Frontend questionnaire flow:
-
-- `/questionnaire` loads the active survey from backend, restores a local draft, saves answers incrementally, and submits to `/result?responseId=...`.
-- Frontend API calls are proxied through Next route handlers under `/api/v1/*`, `/api/auth/*`, `/api/admin/*`, and `/api/me/*` to `BACKEND_ORIGIN` or `http://127.0.0.1:4000` by default.
-- The proxy now forwards cookies, `Authorization`, `x-user-id`, and `x-request-id`, and preserves backend response headers such as `x-request-id`.
-
-## Observability and Security
-
-Backend:
-
-- Every request receives `x-request-id`; incoming `x-request-id` is preserved when provided.
-- Structured JSON request logs are emitted in dev/prod when `ENABLE_STRUCTURED_LOGS=true`.
-- `/api/metrics` exposes in-memory counters for completions, errors, and latency summary.
-- API responses set `Content-Security-Policy`, `Referrer-Policy`, and `X-Content-Type-Options`; `Strict-Transport-Security` is enabled only in production.
-- CORS is allowlist-based via `CORS_ORIGINS`, allows credentials, and still permits top-level requests without an `Origin` header so future OAuth callback redirects are not blocked.
-
-Frontend:
-
-- Next.js applies `Content-Security-Policy`, `Referrer-Policy`, and `X-Content-Type-Options` on app responses.
-- `Strict-Transport-Security` is added only in production builds.
-- Dev CSP keeps `ws://localhost:3000` and backend origin in `connect-src` so local HMR and API proxying continue to work.
-
-## Admin Analytics Export
-
-CSV export with date range and pagination:
-
-```bash
-curl -sS \
-  --cookie "flower_survey_access_token=<access-cookie>" \
-  "http://localhost:4000/api/admin/analytics/export?format=csv&from=2026-03-22T00:00:00.000Z&to=2026-03-22T23:59:59.999Z&page=1&limit=100" \
-  -o analytics.csv
-```
-
-JSON export:
-
-```bash
-curl -sS \
-  --cookie "flower_survey_access_token=<access-cookie>" \
-  "http://localhost:4000/api/admin/analytics/export?format=json&from=2026-03-22T00:00:00.000Z&to=2026-03-22T23:59:59.999Z&page=1&limit=100"
-```
-
-## GDPR Self-Service
-
-Authenticated user endpoints:
-
-- `GET /api/me/export` downloads a JSON export with the current profile, refresh-token metadata, identified response sessions, answers, computed results, and user-authored audit entries.
-- `POST /api/me/delete` requires `{ "confirmation": "DELETE" }`, removes the user account plus linked identified sessions and refresh tokens, clears auth cookies, and keeps only an anonymized deletion audit record.
-
-Example export:
-
-```bash
-curl -sS \
-  --cookie "flower_survey_access_token=<access-cookie>" \
-  "http://localhost:4000/api/me/export" \
-  -o me-export.json
-```
-
-Example deletion:
-
-```bash
-curl -sS \
-  --cookie "flower_survey_access_token=<access-cookie>" \
-  -H "Content-Type: application/json" \
-  -X POST \
-  "http://localhost:4000/api/me/delete" \
-  -d '{"confirmation":"DELETE","reason":"user_request"}'
-```
-
-Anonymous-session retention is managed via admin API:
-
-- `GET /api/admin/retention/anonymous-sessions`
-- `PUT /api/admin/retention/anonymous-sessions`
-
-Example retention update with immediate cleanup:
-
-```bash
-curl -sS \
-  --cookie "flower_survey_access_token=<access-cookie>" \
-  -H "Content-Type: application/json" \
-  -X PUT \
-  "http://localhost:4000/api/admin/retention/anonymous-sessions" \
-  -d '{"retentionDays":30,"runCleanup":true}'
-```
-
-Notes:
-
-- Retention cleanup deletes only anonymous sessions older than the configured cutoff.
-- Audit log entries tied to a deleted account are anonymized; the dedicated GDPR erasure record does not retain deleted personal data.
-- In the current prototype runtime, auth, sessions, and retention settings are stored in memory rather than PostgreSQL.
-
-## Quality Checks
-
-```bash
-npm run lint
-npm run test
-npm run typecheck
-npm run format
-```
-
-Frontend end-to-end flow:
-
-```bash
-npm run test:e2e -w @flower-survey/frontend
-```
-
-## Notes
-
-- `@flower-survey/shared` contains common contracts and UI copy.
-- Root ESLint and Prettier configs are shared across all workspaces.
-- Vitest is configured for `frontend`, `backend`, and `shared`.
+- backend при старте применяет миграции Alembic и загружает активный опросник из `seeds/*.json`
+- frontend работает через тот же origin, что и backend, поэтому авторизация остаётся простой и предсказуемой
+- reverse proxy направляет `/api/*` в FastAPI, а остальные запросы — во frontend
