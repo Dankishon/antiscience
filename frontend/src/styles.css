@@ -373,6 +373,10 @@ p {
 .summary-panel,
 .summary-panel__flower,
 .summary-panel__stats,
+.result-interpretation,
+.result-interpretation__copy,
+.result-traits,
+.result-traits__header,
 .result-hero,
 .result-hero__main,
 .result-hero__flower,
@@ -549,6 +553,15 @@ p {
   align-items: start;
 }
 
+.result-interpretation {
+  align-content: start;
+  gap: 24px;
+}
+
+.result-interpretation__copy {
+  gap: 14px;
+}
+
 .result-hero__flower {
   grid-template-columns: auto 1fr;
   align-items: center;
@@ -575,6 +588,23 @@ p {
   height: 60px;
   border-radius: 20px;
   font-size: 1.5rem;
+}
+
+.result-traits {
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.result-traits__header {
+  gap: 10px;
+  align-items: start;
+}
+
+.result-traits__list {
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .profile-table__header {
@@ -618,6 +648,21 @@ p {
 }
 
 .trait {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  height: 100%;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.trait--compact {
+  gap: 0;
+}
+
+.result-traits__empty {
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
@@ -705,6 +750,7 @@ p {
   .history-item,
   .distribution-row,
   .summary-panel__stats,
+  .result-traits__list,
   .profile-table__header,
   .bar-row {
     grid-template-columns: 1fr;
