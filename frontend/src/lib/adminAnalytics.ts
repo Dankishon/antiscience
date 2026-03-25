@@ -25,6 +25,13 @@ export interface HistogramBin {
   count: number;
 }
 
+export interface FlowerDistributionItem {
+  flower_code: string;
+  flower_title: string;
+  flower_symbol: string | null;
+  count: number;
+}
+
 export function filterQuestionsByScale(
   questions: AdminQuestionMeta[],
   scaleCode: string | null,
@@ -90,6 +97,55 @@ export function getTopRawScale(
     scale: winner,
     rawScore: Number.isFinite(bestScore) ? bestScore : 0,
   };
+}
+
+export function buildFlowerDistribution(
+  summaryDistribution: Array<{
+    flower_code: string;
+    flower_title?: string | null;
+    flower_name?: string | null;
+    flower_symbol?: string | null;
+    count: number;
+  }>,
+  respondents: AdminRespondentMatrixRow[],
+): FlowerDistributionItem[] {
+  const normalizedSummary = summaryDistribution
+    .map((item) => ({
+      flower_code: item.flower_code,
+      flower_title: item.flower_title ?? item.flower_name ?? item.flower_code,
+      flower_symbol: item.flower_symbol ?? null,
+      count: item.count,
+    }))
+    .filter((item) => item.count > 0);
+
+  if (normalizedSummary.length > 0) {
+    return normalizedSummary.sort((left, right) => right.count - left.count || left.flower_title.localeCompare(right.flower_title, 'ru'));
+  }
+
+  const grouped = new Map<string, FlowerDistributionItem>();
+  for (const respondent of respondents) {
+    if (!respondent.main_flower_code && !respondent.main_flower_title) {
+      continue;
+    }
+
+    const flowerCode = respondent.main_flower_code ?? respondent.main_flower_title ?? 'unknown';
+    const current = grouped.get(flowerCode);
+    if (current) {
+      current.count += 1;
+      continue;
+    }
+
+    grouped.set(flowerCode, {
+      flower_code: flowerCode,
+      flower_title: respondent.main_flower_title ?? flowerCode,
+      flower_symbol: null,
+      count: 1,
+    });
+  }
+
+  return Array.from(grouped.values()).sort(
+    (left, right) => right.count - left.count || left.flower_title.localeCompare(right.flower_title, 'ru'),
+  );
 }
 
 export function buildScaleHistogram(

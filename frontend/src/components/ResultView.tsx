@@ -1,4 +1,13 @@
 import { Link } from 'react-router-dom';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import type { ResultPayload } from '../lib/api';
 import {
   buildRadarProfileData,
@@ -201,19 +210,56 @@ export function ResultView({ result }: { result: ResultPayload }) {
           </div>
         </div>
 
-        <AnalyticsBarChart
-          categoryKey="flowerTitle"
-          data={rawExpressionData}
-          horizontal
-          tooltipContent={(datum) => (
-            <>
-              <strong>{String(datum.flowerTitle ?? '')}</strong>
-              <p>Сырой балл: {String(datum.rawScore ?? '')}</p>
-              <p>Z-оценка: {Number(datum.zScore ?? 0).toFixed(2)}</p>
-            </>
-          )}
-          valueKey="rawScore"
-        />
+        <div className="result-expression-chart">
+          <ResponsiveContainer height="100%" width="100%">
+            <BarChart
+              barCategoryGap="22%"
+              data={rawExpressionData}
+              margin={{ top: 12, right: 12, bottom: 48, left: -8 }}
+            >
+              <CartesianGrid stroke="rgba(31, 36, 33, 0.08)" strokeDasharray="4 4" vertical={false} />
+              <XAxis
+                axisLine={false}
+                dataKey="flowerTitle"
+                height={74}
+                interval={0}
+                tick={{ fill: '#5c645e', fontSize: 12 }}
+                tickLine={false}
+                tickMargin={12}
+                angle={-24}
+                textAnchor="end"
+              />
+              <YAxis
+                allowDecimals={false}
+                axisLine={false}
+                domain={[0, 12]}
+                tick={{ fill: '#5c645e', fontSize: 12 }}
+                tickLine={false}
+                tickMargin={8}
+              />
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) {
+                    return null;
+                  }
+
+                  const datum = payload[0]?.payload as (typeof rawExpressionData)[number];
+                  return (
+                    <div className="chart-tooltip">
+                      <strong>{datum.flowerTitle}</strong>
+                      <p>Сырой балл: {datum.rawScore}</p>
+                    </div>
+                  );
+                }}
+                cursor={{ fill: 'rgba(45, 58, 51, 0.05)' }}
+              />
+              <Bar dataKey="rawScore" fill="#344239" maxBarSize={52} radius={[10, 10, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="chart-helper">
+          Этот график показывает сырую выраженность каждого цветка по результатам теста.
+        </p>
       </section>
 
       <section className="card page-card result-full-profile">

@@ -176,6 +176,7 @@ class ResultsApiTests(unittest.TestCase):
     def test_admin_analytics_summary_and_export_use_database_results(self) -> None:
         self._register("person_one")
         self._complete_questionnaire(scale_overrides={"hs": 4})
+        self.client.post("/api/v1/responses", json={})
         self._logout()
 
         self._login_guest()
@@ -192,9 +193,12 @@ class ResultsApiTests(unittest.TestCase):
         summary_response = self.client.get("/api/v1/admin/analytics/summary")
         self.assertEqual(summary_response.status_code, 200, summary_response.text)
         summary_payload = summary_response.json()
-        self.assertEqual(summary_payload["total_attempts"], 2)
+        self.assertEqual(summary_payload["total_attempts"], 3)
         self.assertEqual(summary_payload["completed_tests"], 2)
         self.assertEqual(sum(item["count"] for item in summary_payload["main_flower_distribution"]), 2)
+        self.assertTrue(all("flower_code" in item for item in summary_payload["main_flower_distribution"]))
+        self.assertTrue(all("flower_title" in item for item in summary_payload["main_flower_distribution"]))
+        self.assertTrue(all("count" in item for item in summary_payload["main_flower_distribution"]))
         self.assertEqual(len(summary_payload["average_raw_scores"]), 10)
 
         export_json_response = self.client.get("/api/v1/admin/analytics/export?format=json")

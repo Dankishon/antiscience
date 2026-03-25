@@ -33,7 +33,7 @@ const summaryPayload = {
   total_attempts: 2,
   completed_tests: 2,
   main_flower_distribution: [
-    { flower_code: 'lily', flower_title: 'Лилия', flower_symbol: '⚪️', count: 2 },
+    { flower_code: 'lily', flower_title: 'Лилия', flower_symbol: '⚪️', count: 1 },
     { flower_code: 'chrysanthemum', flower_title: 'Хризантема', flower_symbol: '✺', count: 1 },
   ],
   average_raw_scores: [
@@ -315,9 +315,28 @@ describe('AdminAnalyticsDashboard', () => {
     expect(screen.getByText('Распределение стандартизированных значений (Z-оценок)')).toBeInTheDocument();
     expect(screen.getByText('Сравнение распределений по шкалам')).toBeInTheDocument();
     expect(screen.getByText(/Гистограмма показывает, как распределяются сырые баллы/)).toBeInTheDocument();
+    expect(screen.getByText('Испытуемых в сводке')).toBeInTheDocument();
+    expect(screen.getAllByText('1 испытуемый')).toHaveLength(2);
     await waitFor(() => {
       expect(container.querySelectorAll('svg').length).toBeGreaterThan(0);
     });
+  });
+
+  it('falls back to respondent matrix when summary distribution is empty', async () => {
+    vi.mocked(api.getAnalyticsSummary).mockResolvedValue({
+      ...summaryPayload,
+      main_flower_distribution: [],
+    });
+
+    render(
+      <MemoryRouter>
+        <AdminAnalyticsDashboard user={adminUser} />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Распределение главных цветков')).toBeInTheDocument();
+    expect(screen.getByText('Испытуемых в сводке')).toBeInTheDocument();
+    expect(screen.getAllByText('1 испытуемый')).toHaveLength(2);
   });
 
   it('opens detailed respondent view and renders raw and z charts', async () => {

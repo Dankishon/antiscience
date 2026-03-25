@@ -8,6 +8,7 @@ import {
   type User,
 } from '../lib/api';
 import {
+  buildFlowerDistribution,
   buildQuestionHeatmapRows,
   buildScaleBoxplots,
   buildScaleHeatmapRows,
@@ -36,6 +37,18 @@ function formatDate(value: string): string {
 
 function ChartHelper({ children }: { children: string }) {
   return <p className="chart-helper">{children}</p>;
+}
+
+function formatRespondentCount(count: number): string {
+  const remainder10 = count % 10;
+  const remainder100 = count % 100;
+  if (remainder10 === 1 && remainder100 !== 11) {
+    return `${count} испытуемый`;
+  }
+  if (remainder10 >= 2 && remainder10 <= 4 && (remainder100 < 12 || remainder100 > 14)) {
+    return `${count} испытуемых`;
+  }
+  return `${count} испытуемых`;
 }
 
 function HeatmapTable({
@@ -315,8 +328,13 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
     () => buildQuestionHeatmapRows(respondents, visibleQuestions),
     [respondents, visibleQuestions],
   );
-  const flowerDistribution = summary?.main_flower_distribution ?? [];
+  const flowerDistribution = useMemo(
+    () => buildFlowerDistribution(summary?.main_flower_distribution ?? [], respondents),
+    [respondents, summary?.main_flower_distribution],
+  );
   const averageRawScores = summary?.average_raw_scores ?? [];
+  const distributedRespondentsCount = flowerDistribution.reduce((total, item) => total + item.count, 0);
+  const distributionMaxCount = Math.max(...flowerDistribution.map((item) => item.count), 1);
 
   const openRespondentDetail = async (sessionId: string) => {
     const requestId = detailRequestIdRef.current + 1;
@@ -493,6 +511,42 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                   Этот график показывает, сколько раз каждый цветок становился главным по итогам завершённых
                   прохождений. Он помогает увидеть доминирующие профили в текущей базе.
                 </ChartHelper>
+
+                {flowerDistribution.length > 0 ? (
+                  <>
+                    <div className="metric-item">
+                      <span>Испытуемых в сводке</span>
+                      <strong>{distributedRespondentsCount}</strong>
+                    </div>
+
+                    <div className="distribution-list">
+                      {flowerDistribution.map((item) => (
+                        <article className="distribution-row" key={item.flower_code}>
+                          <div className="distribution-row__label">
+                            <strong>
+                              {item.flower_symbol ? `${item.flower_symbol} ` : ''}
+                              {item.flower_title}
+                            </strong>
+                            <span>{formatRespondentCount(item.count)}</span>
+                          </div>
+                          <div className="distribution-row__value">
+                            <div className="bar-track">
+                              <div
+                                className="bar-fill"
+                                style={{ width: `${(item.count / distributionMaxCount) * 100}%` }}
+                              />
+                            </div>
+                            <strong className="distribution-row__count">{item.count}</strong>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="notice notice--info">
+                    После первых завершённых прохождений здесь появится сводка по главным цветкам и числу испытуемых.
+                  </div>
+                )}
               </section>
 
               <section className="card page-card">
