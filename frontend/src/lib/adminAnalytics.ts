@@ -5,6 +5,19 @@ import type {
   AdminScaleMeta,
 } from './api';
 
+export type HeatmapMode = 'raw' | 'z';
+
+export interface ScaleBoxplotStat {
+  scale_code: string;
+  scale_name: string;
+  min: number;
+  q1: number;
+  median: number;
+  q3: number;
+  max: number;
+  outliers: number[];
+}
+
 export function filterQuestionsByScale(
   questions: AdminQuestionMeta[],
   scaleCode: string | null,
@@ -25,30 +38,23 @@ export function filterQuestionStatsByScale(
   return stats.filter((item) => item.scale_code === scaleCode);
 }
 
-export function buildQuestionDistribution(
-  respondents: AdminRespondentMatrixRow[],
+export function getQuestionDistribution(
+  stats: AdminQuestionStat[],
   questionCode: string | null,
 ): Array<{ value: number; count: number }> {
-  const counts = new Map<number, number>([
-    [0, 0],
-    [1, 0],
-    [2, 0],
-    [3, 0],
-    [4, 0],
-  ]);
-
   if (!questionCode) {
-    return Array.from(counts, ([value, count]) => ({ value, count }));
+    return Array.from({ length: 5 }, (_, value) => ({ value, count: 0 }));
   }
 
-  for (const respondent of respondents) {
-    const value = respondent.answers_by_question[questionCode];
-    if (typeof value === 'number') {
-      counts.set(value, (counts.get(value) ?? 0) + 1);
-    }
+  const question = stats.find((item) => item.question_code === questionCode);
+  if (!question) {
+    return Array.from({ length: 5 }, (_, value) => ({ value, count: 0 }));
   }
 
-  return Array.from(counts, ([value, count]) => ({ value, count }));
+  return question.distribution.map((bucket) => ({
+    value: bucket.value,
+    count: bucket.count,
+  }));
 }
 
 export function getScaleMeta(scales: AdminScaleMeta[], scaleCode: string | null): AdminScaleMeta | null {
@@ -77,4 +83,155 @@ export function getTopRawScale(
     scale: winner,
     rawScore: Number.isFinite(bestScore) ? bestScore : 0,
   };
+}
+
+export function buildScaleHistogram(
+  respondents: AdminRespondentMatrixRow[],
+  scaleCode: string | null,
+): Array<{ value: number; count: number }> {
+  const counts = new Map<number, number>();
+  for (let value = 0; value <= 12; value += 1) {
+    counts.set(value, 0);
+  }
+
+  if (!scaleCode) {
+    return Array.from(counts, ([value, count]) => ({ value, count }));
+  }
+
+  for (const respondent of respondents) {
+    const score = respondent.raw_scores_by_scale[scaleCode];
+    if (typeof score === 'number') {
+      counts.set(score, (counts.get(score) ?? 0) + 1);
+    }
+  }
+
+  return Array.from(counts, ([value, count]) => ({ value, count }));
+}
+
+function quantile(sortedValues: number[], ratio: number): number {
+  if (sortedValues.length === 0) {
+    return 0;
+  }
+  if (sortedValues.length === 1) {
+    return sortedValues[0];
+  }
+
+  const index = (sortedValues.length - 1) * ratio;
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  const weight = index - lower;
+
+  if (lower === upper) {
+    return sortedValues[lower];
+  }
+
+  return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight;
+}
+
+export function buildScaleBoxplots(
+  respondents: AdminRespondentMatrixRow[],
+  scales: AdminScaleMeta[],
+  mode: HeatmapMode,
+): ScaleBoxplotStat[] {
+  return scales.map((scale) => {
+    const values = respondents
+      .map((respondent) =>
+        mode === 'raw'
+          ? respondent.raw_scores_by_scale[scale.scale_code]
+          : respondent.z_scores_by_scale[scale.scale_code],
+      )
+      .filter((value): value is number => typeof value === 'number')
+      .sort((left, right) => left - right);
+
+    if (values.length === 0) {
+      return {
+        scale_code: scale.scale_code,
+        scale_name: scale.scale_name,
+        min: 0,
+        q1: 0,
+        median: 0,
+        q3: 0,
+        max: 0,
+        outliers: [],
+      };
+    }
+
+    const q1 = quantile(values, 0.25);
+    const median = quantile(values, 0.5);
+    const q3 = quantile(values, 0.75);
+    const iqr = q3 - q1;
+    const lowerFence = q1 - iqr * 1.5;
+    const upperFence = q3 + iqr * 1.5;
+    const inliers = values.filter((value) => value >= lowerFence && value <= upperFence);
+    const outliers = values.filter((value) => value < lowerFence || value > upperFence);
+
+    return {
+      scale_code: scale.scale_code,
+      scale_name: scale.scale_name,
+      min: inliers[0] ?? values[0],
+      q1,
+      median,
+      q3,
+      max: inliers[inliers.length - 1] ?? values[values.length - 1],
+      outliers,
+    };
+  });
+}
+
+export function buildQuestionHeatmapRows(
+  respondents: AdminRespondentMatrixRow[],
+  questions: AdminQuestionMeta[],
+) {
+  return respondents.map((respondent) => ({
+    session_id: respondent.session_id,
+    respondent_label: respondent.respondent_label,
+    values: questions.map((question) => ({
+      question_code: question.question_code,
+      value: respondent.answers_by_question[question.question_code],
+    })),
+  }));
+}
+
+export function buildScaleHeatmapRows(
+  respondents: AdminRespondentMatrixRow[],
+  scales: AdminScaleMeta[],
+  mode: HeatmapMode,
+) {
+  return respondents.map((respondent) => ({
+    session_id: respondent.session_id,
+    respondent_label: respondent.respondent_label,
+    values: scales.map((scale) => ({
+      scale_code: scale.scale_code,
+      scale_name: scale.scale_name,
+      value:
+        mode === 'raw'
+          ? respondent.raw_scores_by_scale[scale.scale_code]
+          : respondent.z_scores_by_scale[scale.scale_code],
+    })),
+  }));
+}
+
+export function getHeatmapIntensity(value: number | null | undefined, mode: HeatmapMode): number {
+  if (typeof value !== 'number') {
+    return 0;
+  }
+
+  if (mode === 'raw') {
+    return Math.max(0.08, Math.min(1, value / 12));
+  }
+
+  return Math.max(0.08, Math.min(1, Math.abs(value) / 3));
+}
+
+export function formatDuration(seconds: number | null): string {
+  if (seconds === null || seconds < 0) {
+    return 'Не указана';
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const restSeconds = seconds % 60;
+  if (minutes === 0) {
+    return `${restSeconds} сек`;
+  }
+  return `${minutes} мин ${restSeconds.toString().padStart(2, '0')} сек`;
 }

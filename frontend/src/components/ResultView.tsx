@@ -1,5 +1,12 @@
 import { Link } from 'react-router-dom';
 import type { ResultPayload } from '../lib/api';
+import {
+  buildRadarProfileData,
+  buildRawExpressionData,
+  getRankedScaleScores,
+  getTopFlowers,
+} from '../lib/resultAnalytics';
+import { AnalyticsBarChart, AnalyticsRadarChart } from './AnalyticsCharts';
 
 type DisplayTrait = {
   code: string;
@@ -59,8 +66,12 @@ function getDisplayTraits(result: ResultPayload): DisplayTrait[] {
 }
 
 export function ResultView({ result }: { result: ResultPayload }) {
-  const maxRaw = Math.max(...result.scale_scores.map((item) => item.raw_score), 12);
+  const rankedScores = getRankedScaleScores(result);
+  const fullProfileScores = rankedScores;
+  const radarData = buildRadarProfileData(result);
+  const rawExpressionData = buildRawExpressionData(result);
   const displayTraits = getDisplayTraits(result);
+  const topFlowers = getTopFlowers(result);
   const tieBreakStrategyText = formatTieBreakStrategy(result.tie_break.strategy);
 
   return (
@@ -72,7 +83,7 @@ export function ResultView({ result }: { result: ResultPayload }) {
             <div className="result-symbol">{result.main_flower.flower_symbol ?? '✿'}</div>
             <div>
               <h1>{result.main_flower.flower_title}</h1>
-              <p>Итог сформирован на основе 30 ответов и 10 шкал профиля.</p>
+              <p>Итог сформирован на основе 30 ответов, 10 шкал и полного расчёта профиля по сырым и Z-значениям.</p>
             </div>
           </div>
         </div>
@@ -99,6 +110,58 @@ export function ResultView({ result }: { result: ResultPayload }) {
           <Link className="button button--secondary" to="/questionnaire">
             Пройти ещё раз
           </Link>
+        </div>
+      </section>
+
+      <section className="card page-card">
+        <div className="section-header">
+          <div>
+            <span className="eyebrow">Профиль вашей души</span>
+            <h2>Лепестковая диаграмма выраженности по всем цветкам</h2>
+          </div>
+        </div>
+
+        <AnalyticsRadarChart
+          data={radarData}
+          labelKey="label"
+          tooltipContent={(datum) => (
+            <>
+              <strong>{String(datum.label ?? '')}</strong>
+              <p>Z-оценка: {Number(datum.zScore ?? 0).toFixed(2)}</p>
+              <p>Сырой балл: {String(datum.rawScore ?? '')}</p>
+            </>
+          )}
+          valueKey="zScore"
+        />
+      </section>
+
+      <section className="card page-card">
+        <div className="section-header">
+          <div>
+            <span className="eyebrow">Лидеры профиля</span>
+            <h2>Наиболее выраженные цветки</h2>
+          </div>
+        </div>
+
+        <div className="ranked-flowers">
+          {topFlowers.map((flower, index) => (
+            <article className="trait ranked-flower" key={flower.scale_code}>
+              <span className="ranked-flower__place">{index + 1} место</span>
+              <div className="history-item__flower">
+                <span className="result-symbol result-symbol--small">{flower.flower_symbol ?? '✿'}</span>
+                <div>
+                  <strong>
+                    {flower.flower_title}
+                  </strong>
+                  <p>{flower.scale_code.toUpperCase()}</p>
+                </div>
+              </div>
+              <div className="ranked-flower__stats">
+                <span>Сырой балл: {flower.raw_score}</span>
+                <span>Z-оценка: {flower.z_score.toFixed(2)}</span>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 
@@ -130,32 +193,54 @@ export function ResultView({ result }: { result: ResultPayload }) {
         </div>
       </section>
 
-      <section className="card">
+      <section className="card page-card">
+        <div className="section-header">
+          <div>
+            <span className="eyebrow">Сырые значения</span>
+            <h2>Выраженность всех цветков</h2>
+          </div>
+        </div>
+
+        <AnalyticsBarChart
+          categoryKey="flowerTitle"
+          data={rawExpressionData}
+          horizontal
+          tooltipContent={(datum) => (
+            <>
+              <strong>{String(datum.flowerTitle ?? '')}</strong>
+              <p>Сырой балл: {String(datum.rawScore ?? '')}</p>
+              <p>Z-оценка: {Number(datum.zScore ?? 0).toFixed(2)}</p>
+            </>
+          )}
+          valueKey="rawScore"
+        />
+      </section>
+
+      <section className="card page-card result-full-profile">
         <span className="eyebrow">Полный профиль</span>
-        <div className="profile-table__header">
-          <span>Цветок и шкала</span>
+        <div className="profile-table__header profile-table__header--extended">
+          <span>Ранг и цветок</span>
           <span>Сырые значения</span>
+          <span>Z-оценка</span>
         </div>
         <div className="bars">
-          {result.scale_scores.map((item) => (
-            <div className="bar-row" key={item.scale_code}>
+          {fullProfileScores.map((item) => (
+            <div className="bar-row bar-row--extended" key={item.scale_code}>
               <div className="bar-row__label">
                 <strong>
-                  {item.flower_symbol} {item.flower_title}
+                  {item.rank}. {item.flower_symbol} {item.flower_title}
                 </strong>
-                <span>
-                  {item.scale_code.toUpperCase()} · Z {item.z_score.toFixed(2)}
-                </span>
+                <span>{item.scale_code.toUpperCase()}</span>
               </div>
               <div className="bar-track">
-                <div className="bar-fill" style={{ width: `${(item.raw_score / maxRaw) * 100}%` }} />
+                <div className="bar-fill" style={{ width: `${(item.raw_score / 12) * 100}%` }} />
               </div>
               <strong className="bar-row__score">{item.raw_score}</strong>
+              <strong className="bar-row__score">{item.z_score.toFixed(2)}</strong>
             </div>
           ))}
         </div>
       </section>
-
     </div>
   );
 }

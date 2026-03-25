@@ -12,6 +12,7 @@ from app.api.deps import get_admin_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.analytics import (
+    AdminQuestionStatsPayloadRead,
     AdminRespondentRawMatrixRead,
     AdminRespondentRawScoresRead,
     InternalConsistencyRead,
@@ -22,6 +23,7 @@ from app.services.analytics import (
     collect_detailed_export_rows,
     collect_export_rows,
     collect_internal_consistency,
+    collect_question_stats,
     collect_respondent_raw_scores,
     collect_respondents_raw_matrix,
 )
@@ -108,6 +110,18 @@ def get_respondents_raw_matrix(
 ) -> AdminRespondentRawMatrixRead:
     try:
         return collect_respondents_raw_matrix(db, scale_code=scale_code)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/analytics/question-stats", response_model=AdminQuestionStatsPayloadRead)
+def get_question_stats(
+    scale_code: str | None = Query(default=None),
+    _: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+) -> AdminQuestionStatsPayloadRead:
+    try:
+        return collect_question_stats(db, scale_code=scale_code)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

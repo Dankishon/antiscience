@@ -144,6 +144,20 @@ export interface AdminQuestionStat extends AdminQuestionMeta {
   variance: number;
   standard_deviation: number;
   count: number;
+  missing_count: number;
+  distribution: AdminDistributionBucket[];
+}
+
+export interface AdminDistributionBucket {
+  value: number;
+  count: number;
+}
+
+export interface AdminQuestionStatsPayload {
+  scale_code: string | null;
+  respondents_count: number;
+  scales: AdminScaleMeta[];
+  questions: AdminQuestionStat[];
 }
 
 export interface AdminRespondentMatrixRow {
@@ -153,7 +167,11 @@ export interface AdminRespondentMatrixRow {
   respondent_label: string;
   is_guest: boolean;
   submitted_at: string | null;
+  duration_seconds: number | null;
+  main_flower_code: string | null;
+  main_flower_title: string | null;
   raw_scores_by_scale: Record<string, number>;
+  z_scores_by_scale: Record<string, number>;
   answers_by_question: Record<string, number | null>;
 }
 
@@ -178,7 +196,12 @@ export interface AdminRespondentQuestion {
 export interface AdminRespondentScale {
   scale_code: string;
   scale_name: string;
+  flower_code: string;
+  flower_title: string;
+  flower_symbol: string | null;
   raw_score: number;
+  z_score: number;
+  rank: number;
   questions: AdminRespondentQuestion[];
 }
 
@@ -189,6 +212,17 @@ export interface AdminRespondentRawScores {
   respondent_label: string;
   is_guest: boolean;
   submitted_at: string | null;
+  duration_seconds: number | null;
+  mean: number | null;
+  standard_deviation: number | null;
+  main_flower: {
+    scale_code: string;
+    flower_code: string;
+    flower_title: string;
+    flower_symbol: string | null;
+    raw_score: number;
+    z_score: number;
+  } | null;
   scales: AdminRespondentScale[];
 }
 
@@ -199,6 +233,7 @@ export interface InternalConsistencyItem {
   question_text: string;
   mean: number;
   variance: number;
+  standard_deviation: number;
   item_total_correlation: number | null;
   alpha_if_deleted: number | null;
 }
@@ -286,6 +321,12 @@ export const api = {
       scaleCode
         ? `/api/v1/admin/analytics/respondents/raw-matrix?scale_code=${encodeURIComponent(scaleCode)}`
         : '/api/v1/admin/analytics/respondents/raw-matrix',
+    ),
+  getQuestionStats: (scaleCode?: string) =>
+    request<AdminQuestionStatsPayload>(
+      scaleCode
+        ? `/api/v1/admin/analytics/question-stats?scale_code=${encodeURIComponent(scaleCode)}`
+        : '/api/v1/admin/analytics/question-stats',
     ),
   getRespondentRawScores: (sessionId: string) =>
     request<AdminRespondentRawScores>(`/api/v1/admin/analytics/respondents/${sessionId}/raw-scores`),

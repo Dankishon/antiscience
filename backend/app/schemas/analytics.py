@@ -26,6 +26,20 @@ class AdminQuestionStatRead(AdminQuestionMetaRead):
     variance: float
     standard_deviation: float
     count: int
+    missing_count: int
+    distribution: list["AdminDistributionBucketRead"]
+
+
+class AdminDistributionBucketRead(BaseModel):
+    value: int
+    count: int
+
+
+class AdminQuestionStatsPayloadRead(BaseModel):
+    scale_code: str | None
+    respondents_count: int
+    scales: list[AdminScaleMetaRead]
+    questions: list[AdminQuestionStatRead]
 
 
 class AdminRespondentMatrixRowRead(BaseModel):
@@ -35,7 +49,11 @@ class AdminRespondentMatrixRowRead(BaseModel):
     respondent_label: str
     is_guest: bool
     submitted_at: datetime | None
+    duration_seconds: int | None
+    main_flower_code: str | None
+    main_flower_title: str | None
     raw_scores_by_scale: dict[str, int]
+    z_scores_by_scale: dict[str, float]
     answers_by_question: dict[str, int | None]
 
 
@@ -57,10 +75,24 @@ class AdminRespondentQuestionRead(BaseModel):
     contribution_to_scale: int | None
 
 
+class AdminRespondentMainFlowerRead(BaseModel):
+    scale_code: str
+    flower_code: str
+    flower_title: str
+    flower_symbol: str | None
+    raw_score: int
+    z_score: float
+
+
 class AdminRespondentScaleRead(BaseModel):
     scale_code: str
     scale_name: str
+    flower_code: str
+    flower_title: str
+    flower_symbol: str | None
     raw_score: int
+    z_score: float
+    rank: int
     questions: list[AdminRespondentQuestionRead]
 
 
@@ -71,6 +103,10 @@ class AdminRespondentRawScoresRead(BaseModel):
     respondent_label: str
     is_guest: bool
     submitted_at: datetime | None
+    duration_seconds: int | None
+    mean: float | None
+    standard_deviation: float | None
+    main_flower: AdminRespondentMainFlowerRead | None
     scales: list[AdminRespondentScaleRead]
 
 
@@ -81,6 +117,7 @@ class InternalConsistencyItemRead(BaseModel):
     question_text: str
     mean: float
     variance: float
+    standard_deviation: float
     item_total_correlation: float | None
     alpha_if_deleted: float | None
 

@@ -134,10 +134,16 @@ class AdminAnalyticsApiTests(unittest.TestCase):
         self.assertEqual(payload["session_id"], session_id)
         self.assertEqual(payload["user_id"], user["id"])
         self.assertFalse(payload["is_guest"])
+        self.assertIsNotNone(payload["main_flower"])
+        self.assertIsNotNone(payload["duration_seconds"])
+        self.assertIn("mean", payload)
+        self.assertIn("standard_deviation", payload)
         self.assertEqual(len(payload["scales"]), 10)
 
         hs_scale = next(item for item in payload["scales"] if item["scale_code"] == "hs")
         self.assertEqual(hs_scale["raw_score"], 12)
+        self.assertIn("z_score", hs_scale)
+        self.assertIn("rank", hs_scale)
         self.assertEqual(len(hs_scale["questions"]), 3)
         self.assertTrue(all(question["answer_value"] == 4 for question in hs_scale["questions"]))
         self.assertTrue(all(question["contribution_to_scale"] == 4 for question in hs_scale["questions"]))
@@ -172,12 +178,15 @@ class AdminAnalyticsApiTests(unittest.TestCase):
         guest_row = next(item for item in raw_matrix["respondents"] if item["user_id"] == guest_user["id"])
         self.assertTrue(guest_row["is_guest"])
         self.assertEqual(guest_row["raw_scores_by_scale"]["ma"], 12)
+        self.assertIn("z_scores_by_scale", guest_row)
+        self.assertIn("main_flower_title", guest_row)
 
         filtered_matrix_response = self.client.get("/api/v1/admin/analytics/respondents/raw-matrix?scale_code=hs")
         self.assertEqual(filtered_matrix_response.status_code, 200, filtered_matrix_response.text)
         filtered_matrix = filtered_matrix_response.json()
         self.assertEqual(len(filtered_matrix["questions"]), 3)
         self.assertTrue(all(question["scale_code"] == "hs" for question in filtered_matrix["questions"]))
+        self.assertTrue(all("distribution" in item for item in filtered_matrix["question_stats"]))
 
         export_json_response = self.client.get("/api/v1/admin/analytics/export/detailed?format=json")
         self.assertEqual(export_json_response.status_code, 200, export_json_response.text)
@@ -187,16 +196,42 @@ class AdminAnalyticsApiTests(unittest.TestCase):
         self.assertIn("q30", export_json[0])
         self.assertIn("scale_lily_raw", export_json[0])
         self.assertIn("scale_sunflower_raw", export_json[0])
+        self.assertIn("scale_lily_z", export_json[0])
+        self.assertIn("duration_seconds", export_json[0])
 
         export_csv_response = self.client.get("/api/v1/admin/analytics/export/detailed?format=csv")
         self.assertEqual(export_csv_response.status_code, 200, export_csv_response.text)
-        self.assertIn("session_id,user_id,username,respondent_label,is_guest,submitted_at", export_csv_response.text)
+        self.assertIn(
+            "session_id,user_id,username,respondent_label,is_guest,submitted_at,duration_seconds,main_flower_code,main_flower_title,mean,standard_deviation",
+            export_csv_response.text,
+        )
         self.assertIn("q1", export_csv_response.text)
         self.assertIn("scale_lily_raw", export_csv_response.text)
+        self.assertIn("scale_lily_z", export_csv_response.text)
 
         with self.testing_session_local() as db:
             total_scale_scores = db.scalars(select(ScaleScore)).all()
             self.assertEqual(len(total_scale_scores), 20)
+
+    def test_question_stats_endpoint_returns_distribution_and_missing_counts(self) -> None:
+        admin_user = self._register("questions_admin")
+        self._complete_questionnaire(scale_overrides={"hs": 4, "d": 1})
+        self._complete_questionnaire(scale_overrides={"hs": 2, "d": 3})
+        self._promote_current_user_to_admin(admin_user["id"])
+
+        response = self.client.get("/api/v1/admin/analytics/question-stats?scale_code=hs")
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+
+        self.assertEqual(payload["scale_code"], "hs")
+        self.assertEqual(payload["respondents_count"], 2)
+        self.assertEqual(len(payload["questions"]), 3)
+        first_question = payload["questions"][0]
+        self.assertEqual(first_question["scale_code"], "hs")
+        self.assertEqual(first_question["count"], 2)
+        self.assertEqual(first_question["missing_count"], 0)
+        self.assertEqual(len(first_question["distribution"]), 5)
+        self.assertEqual(sum(bucket["count"] for bucket in first_question["distribution"]), 2)
 
     def test_internal_consistency_endpoint_returns_metrics_for_selected_scale(self) -> None:
         admin_user = self._register("consistency_admin")
@@ -215,6 +250,7 @@ class AdminAnalyticsApiTests(unittest.TestCase):
         self.assertFalse(payload["insufficient_data"])
         self.assertIsNotNone(payload["cronbach_alpha"])
         self.assertEqual(len(payload["items"]), 3)
+        self.assertTrue(all("standard_deviation" in item for item in payload["items"]))
         self.assertTrue(all(item["item_total_correlation"] is not None for item in payload["items"]))
         self.assertTrue(all(item["alpha_if_deleted"] is not None for item in payload["items"]))
 

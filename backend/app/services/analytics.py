@@ -11,8 +11,11 @@ from app.models.response import Answer, ComputedResult, ResponseSession, ScaleSc
 from app.models.survey import Question, Survey, SurveyScale
 from app.models.user import User
 from app.schemas.analytics import (
+    AdminDistributionBucketRead,
     AdminQuestionMetaRead,
     AdminQuestionStatRead,
+    AdminQuestionStatsPayloadRead,
+    AdminRespondentMainFlowerRead,
     AdminRespondentMatrixRowRead,
     AdminRespondentQuestionRead,
     AdminRespondentRawMatrixRead,
@@ -103,6 +106,22 @@ def _respondent_label(user: User) -> str:
     return f"Гость · {user.username}" if user.is_guest else user.username
 
 
+def _duration_seconds(response_session: ResponseSession) -> int | None:
+    if not response_session.submitted_at:
+        return None
+    total_seconds = int((response_session.submitted_at - response_session.created_at).total_seconds())
+    return max(total_seconds, 0)
+
+
+def _scale_score_lookup(response_session: ResponseSession) -> dict[str, ScaleScore]:
+    if not response_session.computed_result or not response_session.computed_result.scale_scores:
+        return {}
+    return {
+        score.scale_code: score
+        for score in response_session.computed_result.scale_scores
+    }
+
+
 def _raw_score_map(
     response_session: ResponseSession,
     *,
@@ -142,6 +161,53 @@ def _build_question_meta(question: Question, *, scale_name: str) -> AdminQuestio
         scale_code=question.scale_code,
         scale_name=scale_name,
     )
+
+
+def _build_question_stats(
+    sessions: list[ResponseSession],
+    *,
+    ordered_questions: list[Question],
+    scale_by_code: dict[str, SurveyScale],
+) -> list[AdminQuestionStatRead]:
+    question_values: dict[str, list[float]] = defaultdict(list)
+    distributions: dict[str, dict[int, int]] = defaultdict(lambda: {value: 0 for value in range(5)})
+
+    for response_session in sessions:
+        answers_by_question_code = {answer.question_code: answer for answer in response_session.answers}
+        for question in ordered_questions:
+            answer = answers_by_question_code.get(question.code)
+            if answer is None:
+                continue
+            question_values[question.code].append(float(answer.value))
+            distributions[question.code][answer.value] = distributions[question.code].get(answer.value, 0) + 1
+
+    question_stats: list[AdminQuestionStatRead] = []
+    total_sessions = len(sessions)
+    for question in ordered_questions:
+        values = question_values.get(question.code, [])
+        scale = scale_by_code[question.scale_code]
+        count = len(values)
+        question_stats.append(
+            AdminQuestionStatRead(
+                question_id=question.id,
+                question_code=question.code,
+                question_order=question.number,
+                question_text=question.prompt,
+                scale_code=question.scale_code,
+                scale_name=scale.title,
+                mean_answer=_round(mean(values)) or 0.0,
+                variance=_round(sample_variance(values)) or 0.0,
+                standard_deviation=_round(sample_standard_deviation(values)) or 0.0,
+                count=count,
+                missing_count=max(total_sessions - count, 0),
+                distribution=[
+                    AdminDistributionBucketRead(value=value, count=distributions[question.code].get(value, 0))
+                    for value in range(5)
+                ],
+            )
+        )
+
+    return question_stats
 
 
 def collect_analytics_summary(db: Session) -> AnalyticsSummaryRead:
@@ -286,6 +352,7 @@ def collect_respondent_raw_scores(db: Session, session_id: str) -> AdminResponde
     survey = response_session.survey
     scale_by_code = _scale_lookup(survey)
     question_by_code = _question_lookup(survey)
+    scale_scores = _scale_score_lookup(response_session)
     raw_scores = _raw_score_map(
         response_session,
         question_by_code=question_by_code,
@@ -312,14 +379,25 @@ def collect_respondent_raw_scores(db: Session, session_id: str) -> AdminResponde
                 )
             )
 
+        scale_score = scale_scores.get(scale.code)
         scales.append(
             AdminRespondentScaleRead(
                 scale_code=scale.code,
                 scale_name=scale.title,
+                flower_code=scale_score.flower_code if scale_score else scale.flower_code,
+                flower_title=scale_score.flower_title if scale_score else scale.title,
+                flower_symbol=scale_score.flower_symbol if scale_score else None,
                 raw_score=raw_scores.get(scale.code, 0),
+                z_score=_round(scale_score.z_score) or 0.0 if scale_score else 0.0,
+                rank=scale_score.rank if scale_score else len(scales) + 1,
                 questions=questions,
             )
         )
+
+    scales.sort(key=lambda item: (item.rank, item.scale_code))
+
+    computed_result = response_session.computed_result
+    main_scale = next((scale for scale in scales if scale.rank == 1), scales[0] if scales else None)
 
     return AdminRespondentRawScoresRead(
         session_id=response_session.id,
@@ -328,6 +406,21 @@ def collect_respondent_raw_scores(db: Session, session_id: str) -> AdminResponde
         respondent_label=_respondent_label(response_session.user),
         is_guest=response_session.user.is_guest,
         submitted_at=response_session.submitted_at,
+        duration_seconds=_duration_seconds(response_session),
+        mean=_round(computed_result.mean_value) if computed_result else None,
+        standard_deviation=_round(computed_result.standard_deviation) if computed_result else None,
+        main_flower=(
+            AdminRespondentMainFlowerRead(
+                scale_code=main_scale.scale_code,
+                flower_code=main_scale.flower_code,
+                flower_title=main_scale.flower_title,
+                flower_symbol=main_scale.flower_symbol,
+                raw_score=main_scale.raw_score,
+                z_score=main_scale.z_score,
+            )
+            if main_scale
+            else None
+        ),
         scales=scales,
     )
 
@@ -348,9 +441,9 @@ def collect_respondents_raw_matrix(
     sessions = db.scalars(_submitted_sessions_query()).all()
 
     respondents: list[AdminRespondentMatrixRowRead] = []
-    question_values: dict[str, list[float]] = defaultdict(list)
     for response_session in sessions:
         answers_by_question_code = {answer.question_code: answer for answer in response_session.answers}
+        scale_scores = _scale_score_lookup(response_session)
         raw_scores = _raw_score_map(
             response_session,
             question_by_code=question_by_code,
@@ -361,8 +454,6 @@ def collect_respondents_raw_matrix(
             answer = answers_by_question_code.get(question.code)
             value = answer.value if answer else None
             answers_payload[question.code] = value
-            if value is not None:
-                question_values[question.code].append(float(value))
 
         respondents.append(
             AdminRespondentMatrixRowRead(
@@ -372,29 +463,23 @@ def collect_respondents_raw_matrix(
                 respondent_label=_respondent_label(response_session.user),
                 is_guest=response_session.user.is_guest,
                 submitted_at=response_session.submitted_at,
+                duration_seconds=_duration_seconds(response_session),
+                main_flower_code=response_session.computed_result.main_flower_code if response_session.computed_result else None,
+                main_flower_title=response_session.computed_result.main_flower_title if response_session.computed_result else None,
                 raw_scores_by_scale={scale.code: raw_scores.get(scale.code, 0) for scale in ordered_scales},
+                z_scores_by_scale={
+                    scale.code: _round(scale_scores[scale.code].z_score) or 0.0 if scale.code in scale_scores else 0.0
+                    for scale in ordered_scales
+                },
                 answers_by_question=answers_payload,
             )
         )
 
-    question_stats: list[AdminQuestionStatRead] = []
-    for question in ordered_questions:
-        values = question_values.get(question.code, [])
-        scale = scale_by_code[question.scale_code]
-        question_stats.append(
-            AdminQuestionStatRead(
-                question_id=question.id,
-                question_code=question.code,
-                question_order=question.number,
-                question_text=question.prompt,
-                scale_code=question.scale_code,
-                scale_name=scale.title,
-                mean_answer=_round(mean(values)) or 0.0,
-                variance=_round(sample_variance(values)) or 0.0,
-                standard_deviation=_round(sample_standard_deviation(values)) or 0.0,
-                count=len(values),
-            )
-        )
+    question_stats = _build_question_stats(
+        sessions,
+        ordered_questions=ordered_questions,
+        scale_by_code=scale_by_code,
+    )
 
     return AdminRespondentRawMatrixRead(
         scales=[_build_scale_meta(scale) for scale in ordered_scales],
@@ -404,6 +489,32 @@ def collect_respondents_raw_matrix(
         ],
         respondents=respondents,
         question_stats=question_stats,
+    )
+
+
+def collect_question_stats(
+    db: Session,
+    *,
+    scale_code: str | None = None,
+) -> AdminQuestionStatsPayloadRead:
+    survey = _active_survey(db)
+    scale_by_code = _scale_lookup(survey)
+    if scale_code and scale_code not in scale_by_code:
+        raise LookupError("Шкала не найдена")
+
+    ordered_scales = _ordered_scales(survey)
+    ordered_questions = _ordered_questions(survey, scale_code=scale_code)
+    sessions = db.scalars(_submitted_sessions_query()).all()
+
+    return AdminQuestionStatsPayloadRead(
+        scale_code=scale_code,
+        respondents_count=len(sessions),
+        scales=[_build_scale_meta(scale) for scale in ordered_scales],
+        questions=_build_question_stats(
+            sessions,
+            ordered_questions=ordered_questions,
+            scale_by_code=scale_by_code,
+        ),
     )
 
 
@@ -417,6 +528,7 @@ def collect_detailed_export_rows(db: Session) -> tuple[list[str], list[dict[str,
 
     question_headers = [f"q{question.number}" for question in ordered_questions]
     scale_headers = [f"scale_{scale.flower_code}_raw" for scale in ordered_scales]
+    z_headers = [f"scale_{scale.flower_code}_z" for scale in ordered_scales]
     headers = [
         "session_id",
         "user_id",
@@ -424,13 +536,20 @@ def collect_detailed_export_rows(db: Session) -> tuple[list[str], list[dict[str,
         "respondent_label",
         "is_guest",
         "submitted_at",
+        "duration_seconds",
+        "main_flower_code",
+        "main_flower_title",
+        "mean",
+        "standard_deviation",
         *question_headers,
         *scale_headers,
+        *z_headers,
     ]
 
     rows: list[dict[str, Any]] = []
     for response_session in sessions:
         answers_by_question_code = {answer.question_code: answer for answer in response_session.answers}
+        scale_scores = _scale_score_lookup(response_session)
         raw_scores = _raw_score_map(
             response_session,
             question_by_code=question_by_code,
@@ -443,12 +562,22 @@ def collect_detailed_export_rows(db: Session) -> tuple[list[str], list[dict[str,
             "respondent_label": _respondent_label(response_session.user),
             "is_guest": response_session.user.is_guest,
             "submitted_at": response_session.submitted_at.isoformat() if response_session.submitted_at else None,
+            "duration_seconds": _duration_seconds(response_session),
+            "main_flower_code": response_session.computed_result.main_flower_code if response_session.computed_result else None,
+            "main_flower_title": response_session.computed_result.main_flower_title if response_session.computed_result else None,
+            "mean": _round(response_session.computed_result.mean_value) if response_session.computed_result else None,
+            "standard_deviation": (
+                _round(response_session.computed_result.standard_deviation) if response_session.computed_result else None
+            ),
         }
         for question in ordered_questions:
             answer = answers_by_question_code.get(question.code)
             row[f"q{question.number}"] = answer.value if answer else None
         for scale in ordered_scales:
             row[f"scale_{scale.flower_code}_raw"] = raw_scores.get(scale.code, 0)
+            row[f"scale_{scale.flower_code}_z"] = (
+                _round(scale_scores[scale.code].z_score) if scale.code in scale_scores else None
+            )
         rows.append(row)
 
     return headers, rows
@@ -505,6 +634,7 @@ def collect_internal_consistency(db: Session, *, scale_code: str) -> InternalCon
                 question_text=question.prompt,
                 mean=_round(mean(column)) or 0.0,
                 variance=_round(sample_variance(column)) or 0.0,
+                standard_deviation=_round(sample_standard_deviation(column)) or 0.0,
                 item_total_correlation=_round(corrected_item_total_correlation(matrix, index)),
                 alpha_if_deleted=_round(cronbach_alpha_if_item_deleted(matrix, index)),
             )
