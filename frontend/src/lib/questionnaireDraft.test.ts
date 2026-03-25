@@ -66,4 +66,32 @@ describe('questionnaireDraft helpers', () => {
 
     expect(loadQuestionnaireDraft(userId)).toBeNull();
   });
+
+  it('ignores malformed draft indexes and invalid session payloads', () => {
+    const userId = 'bad-draft-user';
+
+    window.localStorage.setItem(
+      'flower-profile-questionnaire-draft:bad-draft-user',
+      JSON.stringify({
+        surveyCode: 'flower-soul-profile',
+        surveyVersion: 1,
+        responseSession: {
+          id: 'session-1',
+          survey_code: 'flower-soul-profile',
+          survey_version: 1,
+          status: 'in_progress',
+          answered_count: 1,
+          total_questions: 30,
+          created_at: '2026-03-25T08:00:00Z',
+          updated_at: '2026-03-25T08:01:00Z',
+          submitted_at: null,
+        },
+        answers: { hs_01: 3 },
+        currentIndex: -1,
+        updatedAt: '2026-03-25T08:01:00Z',
+      }),
+    );
+
+    expect(loadQuestionnaireDraft(userId)).toBeNull();
+  });
 });

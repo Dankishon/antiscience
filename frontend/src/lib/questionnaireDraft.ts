@@ -19,6 +19,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+function isResponseSessionLike(value: unknown): value is ResponseSession {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === 'string' &&
+    typeof value.survey_code === 'string' &&
+    typeof value.survey_version === 'number' &&
+    typeof value.status === 'string' &&
+    typeof value.answered_count === 'number' &&
+    typeof value.total_questions === 'number' &&
+    typeof value.created_at === 'string' &&
+    typeof value.updated_at === 'string' &&
+    (typeof value.submitted_at === 'string' || value.submitted_at === null)
+  );
+}
+
 export function loadQuestionnaireDraft(userId: string): QuestionnaireDraft | null {
   if (typeof window === 'undefined') {
     return null;
@@ -31,16 +53,17 @@ export function loadQuestionnaireDraft(userId: string): QuestionnaireDraft | nul
     }
 
     const parsedValue = JSON.parse(rawValue) as unknown;
-    if (!isRecord(parsedValue) || !isRecord(parsedValue.responseSession) || !isRecord(parsedValue.answers)) {
+    if (!isRecord(parsedValue) || !isResponseSessionLike(parsedValue.responseSession) || !isRecord(parsedValue.answers)) {
       return null;
     }
 
     const draft = parsedValue as Partial<QuestionnaireDraft>;
     const rawAnswers = parsedValue.answers;
+    const responseSession = parsedValue.responseSession;
     if (
       typeof draft.surveyCode !== 'string' ||
       typeof draft.surveyVersion !== 'number' ||
-      typeof draft.currentIndex !== 'number' ||
+      !isNonNegativeInteger(draft.currentIndex) ||
       typeof draft.updatedAt !== 'string'
     ) {
       return null;
@@ -49,7 +72,7 @@ export function loadQuestionnaireDraft(userId: string): QuestionnaireDraft | nul
     return {
       surveyCode: draft.surveyCode,
       surveyVersion: draft.surveyVersion,
-      responseSession: draft.responseSession as ResponseSession,
+      responseSession,
       answers: Object.fromEntries(
         Object.entries(rawAnswers).filter(
           (entry): entry is [string, number] => typeof entry[0] === 'string' && typeof entry[1] === 'number',

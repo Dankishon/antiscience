@@ -25,12 +25,31 @@ export function Questionnaire({
   onSubmit,
   onSelect,
 }: QuestionnaireProps) {
-  const question = survey.questions[currentIndex];
+  const questionCount = survey.questions.length;
+  const safeIndex =
+    questionCount > 0 ? Math.min(Math.max(Math.trunc(currentIndex), 0), questionCount - 1) : 0;
+  const question = survey.questions[safeIndex];
+
+  if (!question || survey.likert_scale.length === 0) {
+    return (
+      <section className="card page-card page-card--centered">
+        <span className="eyebrow">Опрос</span>
+        <h1>Структура опроса сейчас недоступна</h1>
+        <p>Мы не смогли безопасно восстановить вопрос или варианты ответа. Вернитесь на главную и начните заново.</p>
+        <div className="stack-row">
+          <button className="button" disabled={saving || submitting} onClick={onClose} type="button">
+            Вернуться на главную
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   const selectedValue = answers[question.code];
   const answeredCount = responseSession?.answered_count ?? Object.keys(answers).length;
-  const remaining = survey.questions.length - Object.keys(answers).length;
-  const isLast = currentIndex === survey.questions.length - 1;
-  const progress = ((currentIndex + 1) / survey.questions.length) * 100;
+  const remaining = Math.max(questionCount - Object.keys(answers).length, 0);
+  const isLast = safeIndex === questionCount - 1;
+  const progress = questionCount > 0 ? ((safeIndex + 1) / questionCount) * 100 : 0;
 
   return (
     <div className="questionnaire-layout">
@@ -43,7 +62,7 @@ export function Questionnaire({
           <div className="metric-item">
             <span>Текущий вопрос</span>
             <strong>
-              {currentIndex + 1} из {survey.questions.length}
+              {safeIndex + 1} из {questionCount}
             </strong>
           </div>
           <div className="metric-item">
@@ -60,7 +79,7 @@ export function Questionnaire({
       <section className="card questionnaire-card">
         <div className="questionnaire-card__header">
           <div>
-            <span className="eyebrow">Вопрос {currentIndex + 1}</span>
+            <span className="eyebrow">Вопрос {safeIndex + 1}</span>
             <h1>{question.prompt}</h1>
             <p className="questionnaire-card__hint">Прогресс сохраняется на этом устройстве, если вы захотите вернуться позже.</p>
           </div>

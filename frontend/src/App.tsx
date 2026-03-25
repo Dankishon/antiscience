@@ -73,6 +73,14 @@ function PageLoadingCard({
   );
 }
 
+function clampQuestionIndex(index: number, questionsCount: number): number {
+  if (!Number.isFinite(index) || questionsCount <= 0) {
+    return 0;
+  }
+
+  return Math.min(Math.max(Math.trunc(index), 0), questionsCount - 1);
+}
+
 function AuthPage({
   user,
   onAuthChange,
@@ -355,6 +363,11 @@ function QuestionnairePage({ user }: { user: User | null }) {
         if (!active) {
           return;
         }
+
+        if (activeSurvey.questions.length === 0 || activeSurvey.likert_scale.length === 0) {
+          throw new Error('Опросник сейчас недоступен: не удалось загрузить вопросы или шкалу ответов.');
+        }
+
         setSurvey(activeSurvey);
         const savedDraft = loadQuestionnaireDraft(user.id);
         if (
@@ -363,9 +376,10 @@ function QuestionnairePage({ user }: { user: User | null }) {
           savedDraft.surveyVersion === activeSurvey.version &&
           savedDraft.responseSession.status !== 'submitted'
         ) {
+          const restoredIndex = clampQuestionIndex(savedDraft.currentIndex, activeSurvey.questions.length);
           setResponseSession(savedDraft.responseSession);
           setAnswers(savedDraft.answers);
-          setCurrentIndex(Math.min(savedDraft.currentIndex, activeSurvey.questions.length - 1));
+          setCurrentIndex(restoredIndex);
           return;
         }
 
@@ -436,7 +450,7 @@ function QuestionnairePage({ user }: { user: User | null }) {
         value,
       });
       const nextAnswers = { ...answers, [questionCode]: value };
-      const nextIndex = Math.min(currentIndex + 1, survey.questions.length - 1);
+      const nextIndex = clampQuestionIndex(currentIndex + 1, survey.questions.length);
       setAnswers(nextAnswers);
       setResponseSession(updatedSession);
       setCurrentIndex(nextIndex);
@@ -454,7 +468,7 @@ function QuestionnairePage({ user }: { user: User | null }) {
     }
 
     if (currentIndex < survey.questions.length - 1) {
-      const nextIndex = currentIndex + 1;
+      const nextIndex = clampQuestionIndex(currentIndex + 1, survey.questions.length);
       setCurrentIndex(nextIndex);
       saveQuestionnaireDraft(user.id, survey, responseSession, answers, nextIndex);
       return;
@@ -489,7 +503,7 @@ function QuestionnairePage({ user }: { user: User | null }) {
           answers={answers}
           currentIndex={currentIndex}
           onBack={() => {
-            const nextIndex = Math.max(currentIndex - 1, 0);
+            const nextIndex = clampQuestionIndex(currentIndex - 1, survey.questions.length);
             setCurrentIndex(nextIndex);
             if (survey && responseSession && user) {
               saveQuestionnaireDraft(user.id, survey, responseSession, answers, nextIndex);
