@@ -84,7 +84,7 @@ class BootstrapAdminTests(unittest.TestCase):
         with self.testing_session_local() as db:
             iris = db.scalar(select(Flower).where(Flower.code == "iris"))
             self.assertIsNotNone(iris)
-            iris.symbol = "🌈"
+            iris.symbol = "💠"
             db.commit()
 
             ensure_seed_data(db)
