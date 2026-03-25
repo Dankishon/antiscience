@@ -8,7 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.security import hash_password
 from app.models.survey import Flower, FlowerInterpretation, FlowerTrait, Question, Survey, SurveyScale
+from app.models.user import User
 
 
 @lru_cache
@@ -24,6 +26,8 @@ def load_interpretation_seed() -> dict:
 
 
 def ensure_seed_data(db: Session) -> None:
+    _ensure_test_admin(db)
+
     question_payload = load_question_seed()
     interpretation_payload = load_interpretation_seed()
     survey_meta = question_payload["survey"]
@@ -180,3 +184,33 @@ def ensure_seed_data(db: Session) -> None:
             )
 
     db.commit()
+
+
+def _ensure_test_admin(db: Session) -> None:
+    settings = get_settings()
+    if not settings.test_admin_enabled:
+        return
+
+    username = settings.test_admin_username.strip().lower()
+    if not username:
+        return
+
+    existing_user = db.scalar(select(User).where(User.username == username))
+    password_hash = hash_password(settings.test_admin_password)
+
+    if existing_user:
+        existing_user.password_hash = password_hash
+        existing_user.is_guest = False
+        existing_user.role = "admin"
+        db.flush()
+        return
+
+    db.add(
+        User(
+            username=username,
+            password_hash=password_hash,
+            is_guest=False,
+            role="admin",
+        )
+    )
+    db.flush()

@@ -60,8 +60,27 @@ PostgreSQL будет доступен на:
 - `SECRET_KEY`
 - `SESSION_TTL_MINUTES`
 - `APP_PORT`
+- `TEST_ADMIN_ENABLED`
+- `TEST_ADMIN_USERNAME`
+- `TEST_ADMIN_PASSWORD`
 
 `DATABASE_URL` можно не задавать вручную: backend соберёт DSN из `POSTGRES_*`.
+
+## Тестовый администратор
+
+При старте backend автоматически создаётся тестовый администратор, если `TEST_ADMIN_ENABLED=true`.
+
+Логин и пароль по умолчанию:
+
+- `test_admin`
+- `admin12345`
+
+Их можно переопределить через `.env`:
+
+```bash
+TEST_ADMIN_USERNAME=test_admin
+TEST_ADMIN_PASSWORD=admin12345
+```
 
 ## Управление стеком
 

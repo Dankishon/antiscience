@@ -123,6 +123,97 @@ export interface AnalyticsSummary {
   }>;
 }
 
+export interface AdminScaleMeta {
+  scale_code: string;
+  scale_name: string;
+  short_code: string;
+  flower_code: string;
+}
+
+export interface AdminQuestionMeta {
+  question_id: string;
+  question_code: string;
+  question_order: number;
+  question_text: string;
+  scale_code: string;
+  scale_name: string;
+}
+
+export interface AdminQuestionStat extends AdminQuestionMeta {
+  mean_answer: number;
+  variance: number;
+  standard_deviation: number;
+  count: number;
+}
+
+export interface AdminRespondentMatrixRow {
+  session_id: string;
+  user_id: string;
+  username: string;
+  respondent_label: string;
+  is_guest: boolean;
+  submitted_at: string | null;
+  raw_scores_by_scale: Record<string, number>;
+  answers_by_question: Record<string, number | null>;
+}
+
+export interface AdminRespondentRawMatrix {
+  scales: AdminScaleMeta[];
+  questions: AdminQuestionMeta[];
+  respondents: AdminRespondentMatrixRow[];
+  question_stats: AdminQuestionStat[];
+}
+
+export interface AdminRespondentQuestion {
+  question_id: string;
+  question_code: string;
+  question_order: number;
+  question_text: string;
+  scale_code: string;
+  scale_name: string;
+  answer_value: number | null;
+  contribution_to_scale: number | null;
+}
+
+export interface AdminRespondentScale {
+  scale_code: string;
+  scale_name: string;
+  raw_score: number;
+  questions: AdminRespondentQuestion[];
+}
+
+export interface AdminRespondentRawScores {
+  session_id: string;
+  user_id: string;
+  username: string;
+  respondent_label: string;
+  is_guest: boolean;
+  submitted_at: string | null;
+  scales: AdminRespondentScale[];
+}
+
+export interface InternalConsistencyItem {
+  question_id: string;
+  question_code: string;
+  question_order: number;
+  question_text: string;
+  mean: number;
+  variance: number;
+  item_total_correlation: number | null;
+  alpha_if_deleted: number | null;
+}
+
+export interface InternalConsistencyPayload {
+  scale_code: string;
+  scale_name: string;
+  respondents_count: number;
+  questions_count: number;
+  cronbach_alpha: number | null;
+  insufficient_data: boolean;
+  message: string | null;
+  items: InternalConsistencyItem[];
+}
+
 type AuthResponse = {
   user: User;
 };
@@ -190,4 +281,18 @@ export const api = {
       method: 'DELETE',
     }),
   getAnalyticsSummary: () => request<AnalyticsSummary>('/api/v1/admin/analytics/summary'),
+  getRespondentsRawMatrix: (scaleCode?: string) =>
+    request<AdminRespondentRawMatrix>(
+      scaleCode
+        ? `/api/v1/admin/analytics/respondents/raw-matrix?scale_code=${encodeURIComponent(scaleCode)}`
+        : '/api/v1/admin/analytics/respondents/raw-matrix',
+    ),
+  getRespondentRawScores: (sessionId: string) =>
+    request<AdminRespondentRawScores>(`/api/v1/admin/analytics/respondents/${sessionId}/raw-scores`),
+  getInternalConsistency: (scaleCode: string) =>
+    request<InternalConsistencyPayload>(
+      `/api/v1/admin/analytics/internal-consistency?scale_code=${encodeURIComponent(scaleCode)}`,
+    ),
+  getDetailedAnalyticsExportUrl: (format: 'csv' | 'json') =>
+    `/api/v1/admin/analytics/export/detailed?format=${format}`,
 };

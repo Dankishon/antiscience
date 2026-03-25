@@ -37,6 +37,7 @@ class Answer(Base):
     response_session_id: Mapped[str] = mapped_column(
         ForeignKey("response_sessions.id", ondelete="CASCADE"), nullable=False
     )
+    question_id: Mapped[str] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"), nullable=False)
     question_code: Mapped[str] = mapped_column(String(64), nullable=False)
     value: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -45,6 +46,7 @@ class Answer(Base):
     )
 
     response_session = relationship("ResponseSession", back_populates="answers")
+    question = relationship("Question", back_populates="answers")
 
 
 class ComputedResult(Base):

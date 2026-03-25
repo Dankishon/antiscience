@@ -106,6 +106,7 @@ class Question(Base):
     is_required: Mapped[bool] = mapped_column(default=True, nullable=False)
 
     survey = relationship("Survey", back_populates="questions")
+    answers = relationship("Answer", back_populates="question")
 
 
 class SurveyScale(Base):

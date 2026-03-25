@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import { AdminAnalyticsDashboard } from './components/AdminAnalyticsDashboard';
 import { AuthPanel } from './components/AuthPanel';
 import { Modal } from './components/Modal';
 import { Questionnaire } from './components/Questionnaire';
@@ -8,7 +9,6 @@ import { Shell } from './components/Shell';
 import {
   api,
   type ActiveSurvey,
-  type AnalyticsSummary,
   type MyResultSummary,
   type ResponseSession,
   type ResultPayload,
@@ -578,167 +578,7 @@ function ResultsHistoryPage({ user }: { user: User | null }) {
 }
 
 function AdminAnalyticsPage({ user }: { user: User | null }) {
-  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user || user.role !== 'admin') {
-      setSummary(null);
-      setLoading(false);
-      return;
-    }
-
-    let active = true;
-    setLoading(true);
-    setError(null);
-
-    const load = async () => {
-      try {
-        const nextSummary = await api.getAnalyticsSummary();
-        if (active) {
-          setSummary(nextSummary);
-        }
-      } catch (currentError) {
-        if (active) {
-          setError(currentError instanceof Error ? currentError.message : 'Не удалось загрузить аналитику');
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [user]);
-
-  if (!user) {
-    return <AuthRequiredCard />;
-  }
-
-  if (user.role !== 'admin') {
-    return (
-      <section className="card page-card page-card--centered">
-        <span className="eyebrow">Аналитика</span>
-        <h1>Эта страница доступна только администратору</h1>
-        <p>Для обычного пользователя доступны личная история результатов и экран индивидуального профиля.</p>
-        <div className="stack-row">
-          <Link className="button" to="/results">
-            Открыть историю
-          </Link>
-        </div>
-      </section>
-    );
-  }
-
-  const flowerDistribution = summary?.main_flower_distribution ?? [];
-  const averageRawScores = summary?.average_raw_scores ?? [];
-  const maxDistribution = flowerDistribution[0]?.count ?? 1;
-
-  return (
-    <div className="page-grid">
-      <section className="card card--hero page-card">
-        <span className="eyebrow">Аналитика</span>
-        <h1>Спокойная сводка по сохранённым прохождениям всех пользователей</h1>
-        <p>Здесь собраны реальные метрики из базы данных: завершённые тесты, распределение лидирующих цветков и шкалы.</p>
-      </section>
-
-      {error ? <div className="notice notice--error">{error}</div> : null}
-
-      <section className="card card--soft dashboard-grid">
-        <div className="metric-item">
-          <span>Всего прохождений</span>
-          <strong>{loading ? '...' : summary?.total_attempts ?? 0}</strong>
-        </div>
-        <div className="metric-item">
-          <span>Завершённых тестов</span>
-          <strong>{loading ? '...' : summary?.completed_tests ?? 0}</strong>
-        </div>
-        <div className="metric-item">
-          <span>Шкал в аналитике</span>
-          <strong>{loading ? '...' : averageRawScores.length}</strong>
-        </div>
-        <div className="metric-item">
-          <span>Частый ведущий цветок</span>
-          <strong>{loading ? '...' : flowerDistribution[0]?.flower_title ?? 'Пока нет данных'}</strong>
-        </div>
-      </section>
-
-      {loading ? (
-        <section className="card page-card page-card--centered">
-          <span className="eyebrow">Аналитика</span>
-          <h2>Загружаем сводку</h2>
-          <p>Собираем агрегаты по прохождениям и шкалам из базы данных.</p>
-        </section>
-      ) : null}
-
-      {!loading && flowerDistribution.length > 0 ? (
-        <section className="card page-card">
-          <div className="section-header">
-            <div>
-              <span className="eyebrow">Распределение</span>
-              <h2>Лидирующие цветки</h2>
-            </div>
-          </div>
-
-          <div className="distribution-list">
-            {flowerDistribution.map((item) => (
-              <div className="distribution-row" key={item.flower_code}>
-                <div className="distribution-row__label">
-                  <strong>
-                    {item.flower_symbol} {item.flower_title}
-                  </strong>
-                  <span>{item.count} профилей</span>
-                </div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${(item.count / maxDistribution) * 100}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {!loading && averageRawScores.length > 0 ? (
-        <section className="card page-card">
-          <div className="section-header">
-            <div>
-              <span className="eyebrow">Шкалы</span>
-              <h2>Средние сырые значения</h2>
-            </div>
-          </div>
-
-          <div className="distribution-list">
-            {averageRawScores.map((item) => (
-              <div className="distribution-row" key={item.scale_code}>
-                <div className="distribution-row__label">
-                  <strong>{item.scale_title}</strong>
-                  <span>
-                    {item.short_code} · {item.average_raw_score.toFixed(2)}
-                  </span>
-                </div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${(item.average_raw_score / 12) * 100}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {!loading && flowerDistribution.length === 0 && averageRawScores.length === 0 ? (
-        <section className="card page-card page-card--centered">
-          <span className="eyebrow">Аналитика</span>
-          <h2>Сводка появится после первых завершённых опросов</h2>
-          <p>Когда в истории накопятся результаты, здесь появятся аккуратные метрики и распределение профилей.</p>
-        </section>
-      ) : null}
-    </div>
-  );
+  return <AdminAnalyticsDashboard user={user} />;
 }
 
 function ResultPage() {

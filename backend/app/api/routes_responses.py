@@ -43,7 +43,7 @@ def _load_owned_session(db: Session, session_id: str, user_id: str) -> ResponseS
         select(ResponseSession)
         .where(ResponseSession.id == session_id, ResponseSession.user_id == user_id)
         .options(
-            selectinload(ResponseSession.answers),
+            selectinload(ResponseSession.answers).selectinload(Answer.question),
             selectinload(ResponseSession.survey),
             selectinload(ResponseSession.computed_result).selectinload(ComputedResult.scale_scores),
         )
@@ -104,9 +104,17 @@ def save_answers(
 
         stored = existing_answers.get(item.question_code)
         if stored:
+            stored.question_id = question.id
             stored.value = item.value
         else:
-            db.add(Answer(response_session_id=response_session.id, question_code=item.question_code, value=item.value))
+            db.add(
+                Answer(
+                    response_session_id=response_session.id,
+                    question_id=question.id,
+                    question_code=item.question_code,
+                    value=item.value,
+                )
+            )
 
     response_session.updated_at = datetime.now(timezone.utc)
     db.commit()

@@ -59,7 +59,8 @@ a {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -325,7 +326,8 @@ p {
   color: var(--text-muted);
 }
 
-.field input {
+.field input,
+.field select {
   width: 100%;
   min-height: 54px;
   padding: 0 16px;
@@ -336,7 +338,8 @@ p {
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
-.field input:focus {
+.field input:focus,
+.field select:focus {
   outline: none;
   border-color: rgba(45, 58, 51, 0.32);
   box-shadow: 0 0 0 4px rgba(45, 58, 51, 0.07);
@@ -412,6 +415,12 @@ p {
   border-color: rgba(142, 84, 70, 0.16);
   background: rgba(255, 246, 243, 0.92);
   color: var(--danger);
+}
+
+.notice--info {
+  border-color: rgba(45, 58, 51, 0.1);
+  background: rgba(248, 247, 243, 0.92);
+  color: var(--text-muted);
 }
 
 .metric-list {
@@ -730,6 +739,68 @@ p {
   box-shadow: 0 28px 80px rgba(18, 22, 20, 0.16);
 }
 
+.modal-card--wide {
+  width: min(1120px, 100%);
+}
+
+.admin-controls,
+.admin-inspection-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-controls {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.admin-inspection-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table th {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table--dense {
+  min-width: 860px;
+}
+
+.admin-table--compact {
+  min-width: 520px;
+}
+
+.admin-subtext {
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  word-break: break-all;
+}
+
 @media (min-width: 900px) {
   .auth-layout {
     grid-template-columns: minmax(0, 1.1fr) minmax(420px, 0.9fr);
@@ -749,6 +820,7 @@ p {
   .summary-panel,
   .history-item,
   .distribution-row,
+  .admin-inspection-grid,
   .summary-panel__stats,
   .result-traits__list,
   .profile-table__header,
