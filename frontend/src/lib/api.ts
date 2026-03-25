@@ -264,6 +264,148 @@ export interface InternalConsistencyPayload {
   items: InternalConsistencyItem[];
 }
 
+export interface StatisticsScaleSummary {
+  scale_code: string;
+  scale_name: string;
+  short_code: string;
+  flower_code: string;
+  flower_title: string;
+  flower_symbol: string | null;
+  sample_mean_raw: number;
+  sample_standard_deviation_raw: number;
+  min_raw: number;
+  max_raw: number;
+  respondents_count: number;
+}
+
+export interface StatisticsRespondentProfile {
+  session_id: string;
+  respondent_label: string;
+  raw_scores_by_scale: Record<string, number>;
+  external_z_scores_by_scale: Record<string, number>;
+}
+
+export interface StatisticsOverview {
+  insufficient_data: boolean;
+  message: string | null;
+  respondents_count: number;
+  scales: StatisticsScaleSummary[];
+  respondents: StatisticsRespondentProfile[];
+}
+
+export interface StatisticsReliabilityScale {
+  scale_code: string;
+  scale_name: string;
+  short_code: string;
+  flower_code: string;
+  flower_title: string;
+  flower_symbol: string | null;
+  cronbach_alpha: number | null;
+  interpretation: string;
+  questions_count: number;
+  respondents_count: number;
+}
+
+export interface StatisticsReliabilityItem {
+  scale_code: string;
+  scale_name: string;
+  question_id: string;
+  question_code: string;
+  question_order: number;
+  question_text: string;
+  mean: number;
+  variance: number;
+  standard_deviation: number;
+  item_total_correlation: number | null;
+  alpha_if_deleted: number | null;
+}
+
+export interface StatisticsReliability {
+  insufficient_data: boolean;
+  message: string | null;
+  scales: StatisticsReliabilityScale[];
+  items: StatisticsReliabilityItem[];
+}
+
+export interface StatisticsCorrelationValue {
+  scale_code: string;
+  scale_name: string;
+  value: number;
+}
+
+export interface StatisticsCorrelationRow {
+  scale_code: string;
+  scale_name: string;
+  values: StatisticsCorrelationValue[];
+}
+
+export interface StatisticsPcaComponent {
+  component_key: string;
+  component_index: number;
+  eigenvalue: number;
+  explained_variance_ratio: number;
+  cumulative_explained_variance_ratio: number;
+}
+
+export interface StatisticsFactorLoading {
+  scale_code: string;
+  scale_name: string;
+  short_code: string;
+  loadings: Array<number | null>;
+}
+
+export interface StatisticsFactorAnalysis {
+  insufficient_data: boolean;
+  message: string | null;
+  respondents_count: number;
+  recommended_components: number | null;
+  included_scale_codes: string[];
+  excluded_scale_codes: string[];
+  components: StatisticsPcaComponent[];
+  correlation_matrix: StatisticsCorrelationRow[];
+  loadings: StatisticsFactorLoading[];
+}
+
+export interface StatisticsClusterProfilePoint {
+  scale_code: string;
+  scale_name: string;
+  short_code: string;
+  mean_raw_score: number;
+  mean_external_z_score: number;
+}
+
+export interface StatisticsCluster {
+  cluster_id: string;
+  label: string;
+  size: number;
+  dominant_flowers: string[];
+  mean_profile: StatisticsClusterProfilePoint[];
+}
+
+export interface StatisticsClusterAssignment {
+  session_id: string;
+  respondent_label: string;
+  cluster_id: string;
+  cluster_label: string;
+}
+
+export interface StatisticsClusters {
+  insufficient_data: boolean;
+  message: string | null;
+  respondents_count: number;
+  cluster_count: number;
+  silhouette_score: number | null;
+  clusters: StatisticsCluster[];
+  assignments: StatisticsClusterAssignment[];
+}
+
+export interface StatisticsPayload {
+  overview: StatisticsOverview;
+  reliability: StatisticsReliability;
+  factor_analysis: StatisticsFactorAnalysis;
+  clusters: StatisticsClusters;
+}
+
 type AuthResponse = {
   user: User;
 };
@@ -349,6 +491,12 @@ export const api = {
     request<InternalConsistencyPayload>(
       `/api/v1/admin/analytics/internal-consistency?scale_code=${encodeURIComponent(scaleCode)}`,
     ),
+  getStatistics: () => request<StatisticsPayload>('/api/v1/admin/analytics/statistics'),
   getDetailedAnalyticsExportUrl: (format: 'csv' | 'json') =>
     `/api/v1/admin/analytics/export/detailed?format=${format}`,
+  getStatisticsExportUrl: (
+    section: 'overview' | 'reliability' | 'factor-analysis' | 'clusters',
+    format: 'csv' | 'json',
+  ) =>
+    `/api/v1/admin/analytics/statistics/export?section=${encodeURIComponent(section)}&format=${format}`,
 };

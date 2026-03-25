@@ -142,6 +142,10 @@ export function ResultView({ result }: { result: ResultPayload }) {
           )}
           valueKey="zScore"
         />
+        <p className="chart-helper">
+          Эта диаграмма показывает, как каждая шкала отклоняется от среднего уровня внутри вашего профиля. Чем дальше
+          точка от центра, тем сильнее выражен соответствующий цветок души.
+        </p>
       </section>
 
       <section className="card page-card">

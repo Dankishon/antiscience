@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,14 +17,25 @@ from app.schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UserRe
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _set_auth_cookie(response: Response, session_token: str) -> None:
+def _is_secure_cookie_request(request: Request) -> bool:
+    settings = get_settings()
+    if settings.force_secure_cookies:
+        return True
+
+    forwarded_proto = request.headers.get("x-forwarded-proto", "")
+    forwarded_scheme = forwarded_proto.split(",", maxsplit=1)[0].strip().lower()
+    request_scheme = request.url.scheme.lower()
+    return (forwarded_scheme or request_scheme) == "https"
+
+
+def _set_auth_cookie(response: Response, request: Request, session_token: str) -> None:
     settings = get_settings()
     response.set_cookie(
         key=settings.cookie_name,
         value=session_token,
         httponly=True,
         samesite="lax",
-        secure=False,
+        secure=_is_secure_cookie_request(request),
         max_age=settings.session_ttl_minutes * 60,
         path="/",
     )
@@ -55,7 +66,12 @@ def _build_guest_username(db: Session) -> str:
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
+def register(
+    payload: RegisterRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> AuthResponse:
     existing = db.scalar(select(User).where(User.username == payload.username))
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Пользователь с таким именем уже существует")
@@ -70,24 +86,29 @@ def register(payload: RegisterRequest, response: Response, db: Session = Depends
     session_token = _create_auth_session(db, user)
     db.commit()
     db.refresh(user)
-    _set_auth_cookie(response, session_token)
+    _set_auth_cookie(response, request, session_token)
     return AuthResponse(user=UserRead.model_validate(user))
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
+def login(
+    payload: LoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> AuthResponse:
     user = db.scalar(select(User).where(User.username == payload.username))
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверное имя пользователя или пароль")
 
     session_token = _create_auth_session(db, user)
     db.commit()
-    _set_auth_cookie(response, session_token)
+    _set_auth_cookie(response, request, session_token)
     return AuthResponse(user=UserRead.model_validate(user))
 
 
 @router.post("/guest", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def guest_login(response: Response, db: Session = Depends(get_db)) -> AuthResponse:
+def guest_login(request: Request, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
     username = _build_guest_username(db)
     user = User(
         username=username,
@@ -99,7 +120,7 @@ def guest_login(response: Response, db: Session = Depends(get_db)) -> AuthRespon
     session_token = _create_auth_session(db, user)
     db.commit()
     db.refresh(user)
-    _set_auth_cookie(response, session_token)
+    _set_auth_cookie(response, request, session_token)
     return AuthResponse(user=UserRead.model_validate(user))
 
 

@@ -8,6 +8,7 @@ interface QuestionnaireProps {
   submitting: boolean;
   survey: ActiveSurvey;
   onBack: () => void;
+  onClose: () => void;
   onSubmit: () => Promise<void>;
   onSelect: (questionCode: string, value: number) => Promise<void>;
 }
@@ -20,6 +21,7 @@ export function Questionnaire({
   submitting,
   survey,
   onBack,
+  onClose,
   onSubmit,
   onSelect,
 }: QuestionnaireProps) {
@@ -60,10 +62,22 @@ export function Questionnaire({
           <div>
             <span className="eyebrow">Вопрос {currentIndex + 1}</span>
             <h1>{question.prompt}</h1>
+            <p className="questionnaire-card__hint">Прогресс сохраняется на этом устройстве, если вы захотите вернуться позже.</p>
           </div>
-          <p className="status-note">
-            {saving ? 'Сохраняем ответ...' : submitting ? 'Формируем результат...' : 'Выберите один вариант ответа'}
-          </p>
+          <div className="questionnaire-card__actions">
+            <p className="status-note">
+              {saving ? 'Сохраняем ответ...' : submitting ? 'Формируем результат...' : 'Выберите один вариант ответа'}
+            </p>
+            <button
+              aria-label="Закрыть опрос и вернуться на главную"
+              className="button button--ghost questionnaire-card__close"
+              disabled={saving || submitting}
+              onClick={onClose}
+              type="button"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         <div className="progress-block">

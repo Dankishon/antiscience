@@ -82,6 +82,11 @@ describe('ResultView', () => {
     expect(screen.getByText('Выраженность всех цветков')).toBeInTheDocument();
     expect(screen.getByText('Наиболее выраженные цветки')).toBeInTheDocument();
     expect(
+      screen.getByText(
+        'Эта диаграмма показывает, как каждая шкала отклоняется от среднего уровня внутри вашего профиля. Чем дальше точка от центра, тем сильнее выражен соответствующий цветок души.',
+      ),
+    ).toBeInTheDocument();
+    expect(
       screen.getByText('Этот график показывает сырую выраженность каждого цветка по результатам теста.'),
     ).toBeInTheDocument();
     expect(

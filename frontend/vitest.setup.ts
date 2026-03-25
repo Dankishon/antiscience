@@ -11,6 +11,26 @@ Object.defineProperty(window, 'ResizeObserver', {
   value: ResizeObserverMock,
 });
 
+const localStorageStore = new Map<string, string>();
+
+Object.defineProperty(window, 'localStorage', {
+  configurable: true,
+  value: {
+    getItem(key: string) {
+      return localStorageStore.get(key) ?? null;
+    },
+    setItem(key: string, value: string) {
+      localStorageStore.set(key, value);
+    },
+    removeItem(key: string) {
+      localStorageStore.delete(key);
+    },
+    clear() {
+      localStorageStore.clear();
+    },
+  },
+});
+
 Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
   configurable: true,
   value: 960,

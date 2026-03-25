@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me"
     session_ttl_minutes: int = 60 * 24 * 7
     cookie_name: str = "flower_profile_session"
+    force_secure_cookies: bool = False
     test_admin_enabled: bool = True
     test_admin_username: str = "test_admin"
     test_admin_password: str = "admin12345"

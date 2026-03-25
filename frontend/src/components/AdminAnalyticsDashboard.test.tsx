@@ -16,7 +16,12 @@ vi.mock('../lib/api', async () => {
       getQuestionStats: vi.fn(),
       getRespondentRawScores: vi.fn(),
       getInternalConsistency: vi.fn(),
+      getStatistics: vi.fn(),
       getDetailedAnalyticsExportUrl: vi.fn((format: 'csv' | 'json') => `/api/v1/admin/analytics/export/detailed?format=${format}`),
+      getStatisticsExportUrl: vi.fn(
+        (section: 'overview' | 'reliability' | 'factor-analysis' | 'clusters', format: 'csv' | 'json') =>
+          `/api/v1/admin/analytics/statistics/export?section=${section}&format=${format}`,
+      ),
     },
   };
 });
@@ -289,12 +294,234 @@ const respondentDetailPayload = {
   ],
 };
 
+const statisticsPayload = {
+  overview: {
+    insufficient_data: false,
+    message: null,
+    respondents_count: 6,
+    scales: [
+      {
+        scale_code: 'hs',
+        scale_name: 'Ипохондрия',
+        short_code: 'Hs',
+        flower_code: 'lily',
+        flower_title: 'Лилия',
+        flower_symbol: '⚪️',
+        sample_mean_raw: 6.2,
+        sample_standard_deviation_raw: 2.1,
+        min_raw: 1,
+        max_raw: 12,
+        respondents_count: 6,
+      },
+      {
+        scale_code: 'd',
+        scale_name: 'Депрессия',
+        short_code: 'D',
+        flower_code: 'chrysanthemum',
+        flower_title: 'Хризантема',
+        flower_symbol: '✺',
+        sample_mean_raw: 5.8,
+        sample_standard_deviation_raw: 1.9,
+        min_raw: 0,
+        max_raw: 11,
+        respondents_count: 6,
+      },
+    ],
+    respondents: [
+      {
+        session_id: 'session-1',
+        respondent_label: 'analyst-user',
+        raw_scores_by_scale: { hs: 12, d: 4 },
+        external_z_scores_by_scale: { hs: 1.4, d: -0.95 },
+      },
+      {
+        session_id: 'session-2',
+        respondent_label: 'Гость · guest-abcd',
+        raw_scores_by_scale: { hs: 3, d: 8 },
+        external_z_scores_by_scale: { hs: -1.52, d: 1.16 },
+      },
+    ],
+  },
+  reliability: {
+    insufficient_data: false,
+    message: null,
+    scales: [
+      {
+        scale_code: 'hs',
+        scale_name: 'Ипохондрия',
+        short_code: 'Hs',
+        flower_code: 'lily',
+        flower_title: 'Лилия',
+        flower_symbol: '⚪️',
+        cronbach_alpha: 0.84,
+        interpretation: 'Хорошо',
+        questions_count: 3,
+        respondents_count: 6,
+      },
+      {
+        scale_code: 'd',
+        scale_name: 'Депрессия',
+        short_code: 'D',
+        flower_code: 'chrysanthemum',
+        flower_title: 'Хризантема',
+        flower_symbol: '✺',
+        cronbach_alpha: 0.76,
+        interpretation: 'Приемлемо',
+        questions_count: 3,
+        respondents_count: 6,
+      },
+    ],
+    items: [
+      {
+        scale_code: 'hs',
+        scale_name: 'Ипохондрия',
+        question_id: 'q1',
+        question_code: 'hs_01',
+        question_order: 1,
+        question_text: 'Вопрос 1',
+        mean: 2.5,
+        variance: 1.2,
+        standard_deviation: 1.0954,
+        item_total_correlation: 0.62,
+        alpha_if_deleted: 0.71,
+      },
+      {
+        scale_code: 'd',
+        scale_name: 'Депрессия',
+        question_id: 'q2',
+        question_code: 'd_01',
+        question_order: 2,
+        question_text: 'Вопрос 2',
+        mean: 2.2,
+        variance: 1.0,
+        standard_deviation: 1,
+        item_total_correlation: 0.54,
+        alpha_if_deleted: 0.69,
+      },
+    ],
+  },
+  factor_analysis: {
+    insufficient_data: false,
+    message: null,
+    respondents_count: 6,
+    recommended_components: 2,
+    included_scale_codes: ['hs', 'd'],
+    excluded_scale_codes: [],
+    components: [
+      {
+        component_key: 'PC1',
+        component_index: 1,
+        eigenvalue: 1.42,
+        explained_variance_ratio: 0.71,
+        cumulative_explained_variance_ratio: 0.71,
+      },
+      {
+        component_key: 'PC2',
+        component_index: 2,
+        eigenvalue: 0.58,
+        explained_variance_ratio: 0.29,
+        cumulative_explained_variance_ratio: 1,
+      },
+    ],
+    correlation_matrix: [
+      {
+        scale_code: 'hs',
+        scale_name: 'Ипохондрия',
+        values: [
+          { scale_code: 'hs', scale_name: 'Ипохондрия', value: 1 },
+          { scale_code: 'd', scale_name: 'Депрессия', value: -0.44 },
+        ],
+      },
+      {
+        scale_code: 'd',
+        scale_name: 'Депрессия',
+        values: [
+          { scale_code: 'hs', scale_name: 'Ипохондрия', value: -0.44 },
+          { scale_code: 'd', scale_name: 'Депрессия', value: 1 },
+        ],
+      },
+    ],
+    loadings: [
+      { scale_code: 'hs', scale_name: 'Ипохондрия', short_code: 'Hs', loadings: [0.82, 0.17] },
+      { scale_code: 'd', scale_name: 'Депрессия', short_code: 'D', loadings: [-0.82, 0.17] },
+    ],
+  },
+  clusters: {
+    insufficient_data: false,
+    message: null,
+    respondents_count: 6,
+    cluster_count: 2,
+    silhouette_score: 0.47,
+    clusters: [
+      {
+        cluster_id: 'cluster_1',
+        label: 'Кластер 1',
+        size: 3,
+        dominant_flowers: ['Лилия', 'Гербера', 'Тюльпан'],
+        mean_profile: [
+          {
+            scale_code: 'hs',
+            scale_name: 'Ипохондрия',
+            short_code: 'Hs',
+            mean_raw_score: 10,
+            mean_external_z_score: 1.1,
+          },
+          {
+            scale_code: 'd',
+            scale_name: 'Депрессия',
+            short_code: 'D',
+            mean_raw_score: 3,
+            mean_external_z_score: -0.8,
+          },
+        ],
+      },
+      {
+        cluster_id: 'cluster_2',
+        label: 'Кластер 2',
+        size: 3,
+        dominant_flowers: ['Хризантема', 'Подсолнух', 'Ирис'],
+        mean_profile: [
+          {
+            scale_code: 'hs',
+            scale_name: 'Ипохондрия',
+            short_code: 'Hs',
+            mean_raw_score: 2,
+            mean_external_z_score: -1.1,
+          },
+          {
+            scale_code: 'd',
+            scale_name: 'Депрессия',
+            short_code: 'D',
+            mean_raw_score: 9,
+            mean_external_z_score: 0.8,
+          },
+        ],
+      },
+    ],
+    assignments: [
+      {
+        session_id: 'session-1',
+        respondent_label: 'analyst-user',
+        cluster_id: 'cluster_1',
+        cluster_label: 'Кластер 1',
+      },
+      {
+        session_id: 'session-2',
+        respondent_label: 'Гость · guest-abcd',
+        cluster_id: 'cluster_2',
+        cluster_label: 'Кластер 2',
+      },
+    ],
+  },
+};
+
 function renderDashboard() {
   vi.mocked(api.getAnalyticsSummary).mockResolvedValue(summaryPayload);
   vi.mocked(api.getRespondentsRawMatrix).mockResolvedValue(matrixPayload);
   vi.mocked(api.getQuestionStats).mockResolvedValue(questionStatsPayload);
   vi.mocked(api.getInternalConsistency).mockResolvedValue(internalConsistencyPayload);
   vi.mocked(api.getRespondentRawScores).mockResolvedValue(respondentDetailPayload);
+  vi.mocked(api.getStatistics).mockResolvedValue(statisticsPayload);
 
   return render(
     <MemoryRouter>
@@ -394,5 +621,22 @@ describe('AdminAnalyticsDashboard', () => {
     expect(screen.getByText('Распределение ответов по вопросу')).toBeInTheDocument();
     expect(screen.getByText('Сводная таблица по вопросам')).toBeInTheDocument();
     expect(screen.getAllByText('Вопрос 1').length).toBeGreaterThan(0);
+  });
+
+  it('loads the psychometrics tab with normalization, reliability, factor and cluster sections', async () => {
+    renderDashboard();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Психометрика' }));
+
+    expect(await screen.findByText('Внешнее нормирование по выборке')).toBeInTheDocument();
+    expect(screen.getByText('Альфа Кронбаха и вклад вопросов')).toBeInTheDocument();
+    expect(screen.getByText('PCA, корреляции и scree plot')).toBeInTheDocument();
+    expect(screen.getByText('Кластеризация профилей по шкалам')).toBeInTheDocument();
+    expect(screen.getByText(/Внешнее нормирование сравнивает/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'CSV' })).toHaveAttribute(
+      'href',
+      '/api/v1/admin/analytics/statistics/export?section=overview&format=csv',
+    );
+    expect(api.getStatistics).toHaveBeenCalledTimes(1);
   });
 });

@@ -3,11 +3,14 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   PolarAngleAxis,
   PolarGrid,
   PolarRadiusAxis,
   Radar,
   RadarChart,
+  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -32,6 +35,16 @@ interface AnalyticsRadarChartProps<T extends object> {
   valueKey: keyof T & string;
   height?: number;
   width?: number;
+  tooltipContent?: (datum: T) => ReactNode;
+}
+
+interface AnalyticsLineChartProps<T extends object> {
+  data: T[];
+  categoryKey: keyof T & string;
+  valueKey: keyof T & string;
+  height?: number;
+  widthPerItem?: number;
+  color?: string;
   tooltipContent?: (datum: T) => ReactNode;
 }
 
@@ -60,74 +73,79 @@ export function AnalyticsBarChart<T extends object>({
 
   return (
     <div className="chart-scroll">
-      <BarChart
-        barCategoryGap={horizontal ? 12 : 18}
-        data={data}
-        height={chartHeight}
-        layout={horizontal ? 'vertical' : 'horizontal'}
-        margin={{ top: 8, right: 24, bottom: horizontal ? 8 : 24, left: horizontal ? 16 : 8 }}
-        width={chartWidth}
+      <div
+        className="chart-scroll__inner"
+        style={{ height: `${chartHeight}px`, minWidth: `${chartWidth}px` }}
       >
-        <CartesianGrid stroke="rgba(31, 36, 33, 0.08)" strokeDasharray="4 4" vertical={!horizontal} />
-        {horizontal ? (
-          <>
-            <XAxis
-              axisLine={false}
-              dataKey={valueKey}
-              domain={valueDomain ?? [0, 'auto']}
-              tickLine={false}
-              type="number"
-            />
-            <YAxis
-              axisLine={false}
-              dataKey={categoryKey}
-              tickLine={false}
-              type="category"
-              width={170}
-            />
-          </>
-        ) : (
-          <>
-            <XAxis
-              axisLine={false}
-              dataKey={categoryKey}
-              interval={0}
-              tickFormatter={xTickFormatter}
-              tickLine={false}
-              tickMargin={10}
-            />
-            <YAxis
-              allowDecimals
-              axisLine={false}
-              domain={valueDomain ?? ['auto', 'auto']}
-              tickLine={false}
-            />
-          </>
-        )}
-        <Tooltip
-          content={({ active, payload }) => {
-            if (!active || !payload?.length) {
-              return null;
-            }
+        <ResponsiveContainer height="100%" width="100%">
+          <BarChart
+            barCategoryGap={horizontal ? 12 : 18}
+            data={data}
+            layout={horizontal ? 'vertical' : 'horizontal'}
+            margin={{ top: 8, right: 24, bottom: horizontal ? 8 : 24, left: horizontal ? 16 : 8 }}
+          >
+            <CartesianGrid stroke="rgba(31, 36, 33, 0.08)" strokeDasharray="4 4" vertical={!horizontal} />
+            {horizontal ? (
+              <>
+                <XAxis
+                  axisLine={false}
+                  dataKey={valueKey}
+                  domain={valueDomain ?? [0, 'auto']}
+                  tickLine={false}
+                  type="number"
+                />
+                <YAxis
+                  axisLine={false}
+                  dataKey={categoryKey}
+                  tickLine={false}
+                  type="category"
+                  width={170}
+                />
+              </>
+            ) : (
+              <>
+                <XAxis
+                  axisLine={false}
+                  dataKey={categoryKey}
+                  interval={0}
+                  tickFormatter={xTickFormatter}
+                  tickLine={false}
+                  tickMargin={10}
+                />
+                <YAxis
+                  allowDecimals
+                  axisLine={false}
+                  domain={valueDomain ?? ['auto', 'auto']}
+                  tickLine={false}
+                />
+              </>
+            )}
+            <Tooltip
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) {
+                  return null;
+                }
 
-            const datum = payload[0]?.payload as T;
-            return (
-              <ChartTooltip>
-                {tooltipContent ? (
-                  tooltipContent(datum)
-                ) : (
-                  <>
-                    <strong>{String(datum[categoryKey] ?? '')}</strong>
-                    <p>{String(datum[valueKey] ?? '')}</p>
-                  </>
-                )}
-              </ChartTooltip>
-            );
-          }}
-          cursor={{ fill: 'rgba(45, 58, 51, 0.05)' }}
-        />
-        <Bar dataKey={valueKey} fill={color} radius={horizontal ? [0, 10, 10, 0] : [10, 10, 0, 0]} />
-      </BarChart>
+                const datum = payload[0]?.payload as T;
+                return (
+                  <ChartTooltip>
+                    {tooltipContent ? (
+                      tooltipContent(datum)
+                    ) : (
+                      <>
+                        <strong>{String(datum[categoryKey] ?? '')}</strong>
+                        <p>{String(datum[valueKey] ?? '')}</p>
+                      </>
+                    )}
+                  </ChartTooltip>
+                );
+              }}
+              cursor={{ fill: 'rgba(45, 58, 51, 0.05)' }}
+            />
+            <Bar dataKey={valueKey} fill={color} radius={horizontal ? [0, 10, 10, 0] : [10, 10, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
@@ -191,6 +209,63 @@ export function AnalyticsRadarChart<T extends object>({
           strokeWidth={2}
         />
       </RadarChart>
+    </div>
+  );
+}
+
+export function AnalyticsLineChart<T extends object>({
+  data,
+  categoryKey,
+  valueKey,
+  height = 320,
+  widthPerItem = 68,
+  color = '#344239',
+  tooltipContent,
+}: AnalyticsLineChartProps<T>) {
+  const chartWidth = Math.max(360, data.length * widthPerItem);
+
+  return (
+    <div className="chart-scroll">
+      <div
+        className="chart-scroll__inner"
+        style={{ height: `${height}px`, minWidth: `${chartWidth}px` }}
+      >
+        <ResponsiveContainer height="100%" width="100%">
+          <LineChart data={data} margin={{ top: 8, right: 24, bottom: 24, left: 8 }}>
+            <CartesianGrid stroke="rgba(31, 36, 33, 0.08)" strokeDasharray="4 4" vertical={false} />
+            <XAxis axisLine={false} dataKey={categoryKey} interval={0} tickLine={false} tickMargin={10} />
+            <YAxis axisLine={false} domain={[0, 'auto']} tickLine={false} />
+            <Tooltip
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) {
+                  return null;
+                }
+
+                const datum = payload[0]?.payload as T;
+                return (
+                  <ChartTooltip>
+                    {tooltipContent ? (
+                      tooltipContent(datum)
+                    ) : (
+                      <>
+                        <strong>{String(datum[categoryKey] ?? '')}</strong>
+                        <p>{String(datum[valueKey] ?? '')}</p>
+                      </>
+                    )}
+                  </ChartTooltip>
+                );
+              }}
+            />
+            <Line
+              dataKey={valueKey}
+              dot={{ fill: color, r: 4, strokeWidth: 0 }}
+              stroke={color}
+              strokeWidth={2}
+              type="monotone"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

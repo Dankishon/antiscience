@@ -23,6 +23,20 @@ def sample_standard_deviation(values: list[float]) -> float | None:
     return math.sqrt(variance)
 
 
+def population_variance(values: list[float]) -> float | None:
+    if not values:
+        return None
+    average = mean(values)
+    return sum((value - average) ** 2 for value in values) / len(values)
+
+
+def population_standard_deviation(values: list[float]) -> float | None:
+    variance = population_variance(values)
+    if variance is None:
+        return None
+    return math.sqrt(variance)
+
+
 def pearson_correlation(left: list[float], right: list[float]) -> float | None:
     if len(left) != len(right) or len(left) < 2:
         return None

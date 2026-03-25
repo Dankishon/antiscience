@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
-import { AdminAnalyticsDashboard } from './components/AdminAnalyticsDashboard';
 import { AuthPanel } from './components/AuthPanel';
 import { Modal } from './components/Modal';
-import { Questionnaire } from './components/Questionnaire';
-import { ResultView } from './components/ResultView';
 import { Shell } from './components/Shell';
 import {
   api,
@@ -14,6 +11,23 @@ import {
   type ResultPayload,
   type User,
 } from './lib/api';
+import {
+  clearQuestionnaireDraft,
+  loadQuestionnaireDraft,
+  saveQuestionnaireDraft,
+} from './lib/questionnaireDraft';
+
+const AdminAnalyticsDashboard = lazy(async () => ({
+  default: (await import('./components/AdminAnalyticsDashboard')).AdminAnalyticsDashboard,
+}));
+
+const Questionnaire = lazy(async () => ({
+  default: (await import('./components/Questionnaire')).Questionnaire,
+}));
+
+const ResultView = lazy(async () => ({
+  default: (await import('./components/ResultView')).ResultView,
+}));
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('ru-RU', {
@@ -37,6 +51,24 @@ function AuthRequiredCard() {
           Перейти к авторизации
         </Link>
       </div>
+    </section>
+  );
+}
+
+function PageLoadingCard({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <section className="card page-card page-card--centered">
+      <span className="eyebrow">{eyebrow}</span>
+      <h1>{title}</h1>
+      <p>{description}</p>
     </section>
   );
 }
@@ -305,22 +337,46 @@ function QuestionnairePage({ user }: { user: User | null }) {
 
   useEffect(() => {
     if (!user) {
+      setSurvey(null);
+      setResponseSession(null);
+      setAnswers({});
+      setCurrentIndex(0);
+      setError(null);
+      setLoading(false);
       return;
     }
 
     let active = true;
     const load = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const activeSurvey = await api.getActiveSurvey();
         if (!active) {
           return;
         }
         setSurvey(activeSurvey);
+        const savedDraft = loadQuestionnaireDraft(user.id);
+        if (
+          savedDraft &&
+          savedDraft.surveyCode === activeSurvey.code &&
+          savedDraft.surveyVersion === activeSurvey.version &&
+          savedDraft.responseSession.status !== 'submitted'
+        ) {
+          setResponseSession(savedDraft.responseSession);
+          setAnswers(savedDraft.answers);
+          setCurrentIndex(Math.min(savedDraft.currentIndex, activeSurvey.questions.length - 1));
+          return;
+        }
+
         const session = await api.createResponse();
         if (!active) {
           return;
         }
+        setAnswers({});
+        setCurrentIndex(0);
         setResponseSession(session);
+        saveQuestionnaireDraft(user.id, activeSurvey, session, {}, 0);
       } catch (currentError) {
         if (active) {
           setError(currentError instanceof Error ? currentError.message : 'Не удалось загрузить опрос');
@@ -344,11 +400,11 @@ function QuestionnairePage({ user }: { user: User | null }) {
 
   if (loading) {
     return (
-      <section className="card page-card page-card--centered">
-        <span className="eyebrow">Подготовка</span>
-        <h1>Собираем опросник</h1>
-        <p>Через мгновение появится первый вопрос с сохранением ответов по шагам.</p>
-      </section>
+      <PageLoadingCard
+        description="Через мгновение появится первый вопрос с сохранением ответов по шагам."
+        eyebrow="Подготовка"
+        title="Собираем опросник"
+      />
     );
   }
 
@@ -368,6 +424,10 @@ function QuestionnairePage({ user }: { user: User | null }) {
   }
 
   const handleSelect = async (questionCode: string, value: number) => {
+    if (!survey || !responseSession || !user) {
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -375,9 +435,12 @@ function QuestionnairePage({ user }: { user: User | null }) {
         question_code: questionCode,
         value,
       });
-      setAnswers((current) => ({ ...current, [questionCode]: value }));
+      const nextAnswers = { ...answers, [questionCode]: value };
+      const nextIndex = Math.min(currentIndex + 1, survey.questions.length - 1);
+      setAnswers(nextAnswers);
       setResponseSession(updatedSession);
-      setCurrentIndex((current) => Math.min(current + 1, survey.questions.length - 1));
+      setCurrentIndex(nextIndex);
+      saveQuestionnaireDraft(user.id, survey, updatedSession, nextAnswers, nextIndex);
     } catch (currentError) {
       setError(currentError instanceof Error ? currentError.message : 'Не удалось сохранить ответ');
     } finally {
@@ -386,8 +449,14 @@ function QuestionnairePage({ user }: { user: User | null }) {
   };
 
   const handleSubmit = async () => {
+    if (!survey || !responseSession || !user) {
+      return;
+    }
+
     if (currentIndex < survey.questions.length - 1) {
-      setCurrentIndex((current) => current + 1);
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      saveQuestionnaireDraft(user.id, survey, responseSession, answers, nextIndex);
       return;
     }
 
@@ -395,6 +464,7 @@ function QuestionnairePage({ user }: { user: User | null }) {
     setError(null);
     try {
       const result = await api.submitResponse(responseSession.id);
+      clearQuestionnaireDraft(user.id);
       navigate(`/result/${result.response_session_id}`);
     } catch (currentError) {
       setError(currentError instanceof Error ? currentError.message : 'Не удалось завершить опрос');
@@ -406,17 +476,34 @@ function QuestionnairePage({ user }: { user: User | null }) {
   return (
     <div className="page-grid">
       {error ? <div className="notice notice--error">{error}</div> : null}
-      <Questionnaire
-        answers={answers}
-        currentIndex={currentIndex}
-        onBack={() => setCurrentIndex((current) => Math.max(current - 1, 0))}
-        onSelect={handleSelect}
-        onSubmit={handleSubmit}
-        responseSession={responseSession}
-        saving={saving}
-        submitting={submitting}
-        survey={survey}
-      />
+      <Suspense
+        fallback={
+          <PageLoadingCard
+            description="Подгружаем интерфейс вопроса и контролы прогресса."
+            eyebrow="Опрос"
+            title="Готовим экран прохождения"
+          />
+        }
+      >
+        <Questionnaire
+          answers={answers}
+          currentIndex={currentIndex}
+          onBack={() => {
+            const nextIndex = Math.max(currentIndex - 1, 0);
+            setCurrentIndex(nextIndex);
+            if (survey && responseSession && user) {
+              saveQuestionnaireDraft(user.id, survey, responseSession, answers, nextIndex);
+            }
+          }}
+          onClose={() => navigate('/home')}
+          onSelect={handleSelect}
+          onSubmit={handleSubmit}
+          responseSession={responseSession}
+          saving={saving}
+          submitting={submitting}
+          survey={survey}
+        />
+      </Suspense>
     </div>
   );
 }
@@ -578,7 +665,19 @@ function ResultsHistoryPage({ user }: { user: User | null }) {
 }
 
 function AdminAnalyticsPage({ user }: { user: User | null }) {
-  return <AdminAnalyticsDashboard user={user} />;
+  return (
+    <Suspense
+      fallback={
+        <PageLoadingCard
+          description="Подгружаем графики, матрицы и сводки по завершённым прохождениям."
+          eyebrow="Аналитика"
+          title="Открываем панель аналитики"
+        />
+      }
+    >
+      <AdminAnalyticsDashboard user={user} />
+    </Suspense>
+  );
 }
 
 function ResultPage() {
@@ -592,6 +691,8 @@ function ResultPage() {
     }
 
     let active = true;
+    setResult(null);
+    setError(null);
     const loadResult = async () => {
       try {
         const payload = await api.getResult(responseId);
@@ -623,15 +724,27 @@ function ResultPage() {
 
   if (!result) {
     return (
-      <section className="card page-card page-card--centered">
-        <span className="eyebrow">Результат</span>
-        <h1>Формируем экран результата</h1>
-        <p>Загружаем интерпретацию, шкалы и сводку по цветочному профилю.</p>
-      </section>
+      <PageLoadingCard
+        description="Загружаем интерпретацию, шкалы и сводку по цветочному профилю."
+        eyebrow="Результат"
+        title="Формируем экран результата"
+      />
     );
   }
 
-  return <ResultView result={result} />;
+  return (
+    <Suspense
+      fallback={
+        <PageLoadingCard
+          description="Подгружаем визуализации профиля и полную интерпретацию."
+          eyebrow="Результат"
+          title="Готовим профиль"
+        />
+      }
+    >
+      <ResultView result={result} />
+    </Suspense>
+  );
 }
 
 export function App() {

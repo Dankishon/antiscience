@@ -80,6 +80,15 @@ class BootstrapAdminTests(unittest.TestCase):
         self.assertEqual(payload["user"]["username"], "test_admin")
         self.assertEqual(payload["user"]["role"], "admin")
 
+    def test_login_sets_secure_cookie_for_https_proxy_requests(self) -> None:
+        response = self.client.post(
+            "/api/v1/auth/login",
+            json={"username": "test_admin", "password": "admin12345"},
+            headers={"x-forwarded-proto": "https"},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn("Secure", response.headers["set-cookie"])
+
     def test_seed_refresh_updates_existing_flower_symbol(self) -> None:
         with self.testing_session_local() as db:
             iris = db.scalar(select(Flower).where(Flower.code == "iris"))

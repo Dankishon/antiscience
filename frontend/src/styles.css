@@ -493,6 +493,26 @@ p {
   gap: 12px;
 }
 
+.questionnaire-card__actions {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.questionnaire-card__hint {
+  margin-top: 8px;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+}
+
+.questionnaire-card__close {
+  min-width: 52px;
+  width: 52px;
+  padding-inline: 0;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
 .status-note {
   font-size: 0.95rem;
   color: var(--text-soft);
@@ -867,9 +887,14 @@ p {
 
 .admin-controls,
 .heatmap-wrap,
+.stats-section-stack,
 .admin-inspection-grid {
   display: grid;
   gap: 16px;
+}
+
+.stats-section-stack {
+  gap: 24px;
 }
 
 .admin-controls {
@@ -955,6 +980,10 @@ p {
 .chart-scroll {
   overflow-x: auto;
   padding-bottom: 6px;
+}
+
+.chart-scroll__inner {
+  width: 100%;
 }
 
 .chart-scroll--centered {
@@ -1137,6 +1166,10 @@ p {
   .shell__nav-group,
   .questionnaire-card__footer {
     display: grid;
+  }
+
+  .questionnaire-card__actions {
+    justify-items: start;
   }
 
   .button,

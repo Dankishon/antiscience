@@ -7,3 +7,4 @@ alembic==1.15.2
 pydantic-settings==2.8.1
 passlib==1.7.4
 httpx==0.28.1
+numpy==2.2.6

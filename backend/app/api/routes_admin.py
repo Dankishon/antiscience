@@ -18,6 +18,7 @@ from app.schemas.analytics import (
     InternalConsistencyRead,
 )
 from app.schemas.response import AnalyticsExportRowRead, AnalyticsSummaryRead
+from app.schemas.statistics import StatisticsPayloadRead
 from app.services.analytics import (
     collect_analytics_summary,
     collect_detailed_export_rows,
@@ -27,6 +28,7 @@ from app.services.analytics import (
     collect_respondent_raw_scores,
     collect_respondents_raw_matrix,
 )
+from app.services.statistics import collect_statistics_export_rows, collect_statistics_payload
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -153,3 +155,33 @@ def get_internal_consistency(
         return collect_internal_consistency(db, scale_code=scale_code)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/analytics/statistics", response_model=StatisticsPayloadRead)
+def get_statistics_payload(
+    _: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+) -> StatisticsPayloadRead:
+    return collect_statistics_payload(db)
+
+
+@router.get("/analytics/statistics/export", response_model=None)
+def export_statistics(
+    section: Literal["overview", "reliability", "factor-analysis", "clusters"] = Query(default="overview"),
+    format: Literal["json", "csv"] = Query(default="json"),
+    _: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+) -> list[dict[str, Any]] | StreamingResponse:
+    try:
+        fieldnames, rows = collect_statistics_export_rows(db, section=section)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    if format == "csv":
+        payload = _serialize_csv(fieldnames, rows)
+        return StreamingResponse(
+            iter([payload]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="flower-profile-statistics-{section}.csv"'},
+        )
+    return rows

@@ -5,6 +5,7 @@ import {
   type AdminQuestionStatsPayload,
   type AnalyticsSummary,
   type InternalConsistencyPayload,
+  type StatisticsPayload,
   type User,
 } from '../lib/api';
 import {
@@ -25,8 +26,9 @@ import {
 } from '../lib/adminAnalytics';
 import { AnalyticsBarChart } from './AnalyticsCharts';
 import { AdminRespondentModal } from './AdminRespondentModal';
+import { AdminStatisticsTab } from './AdminStatisticsTab';
 
-type AdminTab = 'overview' | 'respondents' | 'questions' | 'consistency';
+type AdminTab = 'overview' | 'respondents' | 'questions' | 'consistency' | 'statistics';
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('ru-RU', {
@@ -163,12 +165,15 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
   const [matrix, setMatrix] = useState<Awaited<ReturnType<typeof api.getRespondentsRawMatrix>> | null>(null);
   const [questionStats, setQuestionStats] = useState<AdminQuestionStatsPayload | null>(null);
   const [consistency, setConsistency] = useState<InternalConsistencyPayload | null>(null);
+  const [statistics, setStatistics] = useState<StatisticsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [questionStatsLoading, setQuestionStatsLoading] = useState(false);
   const [consistencyLoading, setConsistencyLoading] = useState(false);
+  const [statisticsLoading, setStatisticsLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [statisticsError, setStatisticsError] = useState<string | null>(null);
   const [selectedQuestionScale, setSelectedQuestionScale] = useState<string | null>(null);
   const [selectedHistogramScale, setSelectedHistogramScale] = useState<string | null>(null);
   const [selectedQuestionCode, setSelectedQuestionCode] = useState<string | null>(null);
@@ -184,6 +189,7 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
       setMatrix(null);
       setQuestionStats(null);
       setConsistency(null);
+      setStatistics(null);
       setLoading(false);
       return;
     }
@@ -289,6 +295,38 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
       active = false;
     };
   }, [selectedConsistencyScale, user]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'admin' || activeTab !== 'statistics' || statistics) {
+      return;
+    }
+
+    let active = true;
+    setStatisticsLoading(true);
+    setStatisticsError(null);
+
+    const load = async () => {
+      try {
+        const payload = await api.getStatistics();
+        if (active) {
+          setStatistics(payload);
+        }
+      } catch (currentError) {
+        if (active) {
+          setStatisticsError(currentError instanceof Error ? currentError.message : 'Не удалось загрузить статистику');
+        }
+      } finally {
+        if (active) {
+          setStatisticsLoading(false);
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [activeTab, statistics, user]);
 
   useEffect(() => {
     const visibleQuestions = questionStats?.questions ?? filterQuestionsByScale(matrix?.questions ?? [], selectedQuestionScale);
@@ -471,6 +509,13 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
               type="button"
             >
               Надежность
+            </button>
+            <button
+              className={`tab${activeTab === 'statistics' ? ' tab--active' : ''}`}
+              onClick={() => setActiveTab('statistics')}
+              type="button"
+            >
+              Психометрика
             </button>
           </div>
         </section>
@@ -1159,6 +1204,15 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
               </>
             ) : null}
           </section>
+        ) : null}
+
+        {!loading && activeTab === 'statistics' ? (
+          <AdminStatisticsTab
+            error={statisticsError}
+            getExportUrl={api.getStatisticsExportUrl}
+            loading={statisticsLoading}
+            payload={statistics}
+          />
         ) : null}
 
         {!loading && !respondents.length ? (
