@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { AdminRespondentRawScores } from '../lib/api';
 import { formatDuration } from '../lib/adminAnalytics';
 import { AnalyticsBarChart } from './AnalyticsCharts';
@@ -17,6 +18,23 @@ export function AdminRespondentModal({
   onClose,
   formatDate,
 }: AdminRespondentModalProps) {
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeydown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeydown);
+    };
+  }, [onClose]);
+
   const sortedScales = [...(detail?.scales ?? [])].sort((left, right) => left.rank - right.rank);
   const rawChartData = sortedScales.map((scale) => ({
     label: scale.scale_name,
@@ -30,16 +48,37 @@ export function AdminRespondentModal({
   }));
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div aria-modal="true" className="modal-card modal-card--wide" role="dialog">
+    <div
+      className="modal-backdrop"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        aria-modal="true"
+        className="modal-card modal-card--wide"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+      >
         <div className="modal-card__header">
-          <span className="eyebrow">Испытуемый</span>
-          <h2>{detail?.respondent_label ?? 'Детальный просмотр'}</h2>
-          <p>
-            {detail?.submitted_at
-              ? `Прохождение завершено ${formatDate(detail.submitted_at)}.`
-              : 'Собираем детальный профиль по шкалам, вопросам и итоговым коэффициентам.'}
-          </p>
+          <div className="modal-card__topbar">
+            <span className="eyebrow">Испытуемый</span>
+            <button
+              aria-label="Закрыть окно"
+              className="modal-card__dismiss"
+              onClick={onClose}
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+          <div className="modal-card__headline">
+            <h2>{detail?.respondent_label ?? 'Детальный просмотр'}</h2>
+            <p>
+              {detail?.submitted_at
+                ? `Прохождение завершено ${formatDate(detail.submitted_at)}.`
+                : 'Собираем детальный профиль по шкалам, вопросам и итоговым коэффициентам.'}
+            </p>
+          </div>
         </div>
 
         <div className="modal-card__body">
@@ -205,7 +244,7 @@ export function AdminRespondentModal({
           ) : null}
         </div>
 
-        <div className="stack-row stack-row--end">
+        <div className="modal-card__footer stack-row stack-row--end">
           <button className="button button--secondary" onClick={onClose} type="button">
             Закрыть
           </button>

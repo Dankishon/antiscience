@@ -774,15 +774,63 @@ p {
 
 .modal-card {
   width: min(520px, 100%);
+  max-height: min(calc(100vh - 40px), 920px);
   padding: 24px;
   border: 1px solid rgba(255, 255, 255, 0.75);
   border-radius: var(--radius-xl);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 28px 80px rgba(18, 22, 20, 0.16);
+  overflow: hidden;
 }
 
 .modal-card--wide {
   width: min(1120px, 100%);
+}
+
+.modal-card__topbar {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.modal-card__headline {
+  display: grid;
+  gap: 12px;
+}
+
+.modal-card__body {
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.modal-card__footer {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.modal-card__dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.modal-card__dismiss:hover {
+  transform: translateY(-1px);
+  border-color: var(--line-strong);
+  background: var(--surface-strong);
 }
 
 .admin-controls,

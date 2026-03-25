@@ -318,6 +318,20 @@ describe('AdminAnalyticsDashboard', () => {
     });
   });
 
+  it('closes respondent modal by the dismiss button', async () => {
+    renderDashboard();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Испытуемые' }));
+    fireEvent.click(await screen.findAllByRole('button', { name: 'Подробнее' }).then((buttons) => buttons[0]));
+
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Закрыть окно' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
   it('renders item-level tables and question charts', async () => {
     renderDashboard();
 
