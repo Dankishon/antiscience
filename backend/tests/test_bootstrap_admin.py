@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.api.routes_auth import router as auth_router  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.db.session import get_db  # noqa: E402
+from app.models.survey import Flower  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.services.seed_service import ensure_seed_data  # noqa: E402
 
@@ -78,6 +79,17 @@ class BootstrapAdminTests(unittest.TestCase):
         payload = response.json()
         self.assertEqual(payload["user"]["username"], "test_admin")
         self.assertEqual(payload["user"]["role"], "admin")
+
+    def test_seed_refresh_updates_existing_flower_symbol(self) -> None:
+        with self.testing_session_local() as db:
+            iris = db.scalar(select(Flower).where(Flower.code == "iris"))
+            self.assertIsNotNone(iris)
+            iris.symbol = "🌈"
+            db.commit()
+
+            ensure_seed_data(db)
+            db.refresh(iris)
+            self.assertEqual(iris.symbol, "🪻")
 
 
 if __name__ == "__main__":

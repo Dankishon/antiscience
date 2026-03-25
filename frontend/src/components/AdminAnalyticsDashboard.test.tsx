@@ -226,6 +226,21 @@ const respondentDetailPayload = {
     raw_score: 12,
     z_score: 2.4,
   },
+  secondary_flower: {
+    scale_code: 'd',
+    flower_code: 'chrysanthemum',
+    flower_title: 'Хризантема',
+    flower_symbol: '✺',
+    raw_score: 4,
+    z_score: -0.3,
+  },
+  interpretation: {
+    z_level_code: 'high',
+    z_level_title: 'Высокая выраженность',
+    profile_title: 'Личностный профиль',
+    profile_summary: 'Краткая интерпретация профиля.',
+    z_summary: 'Шкала выражена выше среднего уровня профиля.',
+  },
   scales: [
     {
       scale_code: 'hs',
@@ -297,7 +312,9 @@ describe('AdminAnalyticsDashboard', () => {
     const { container } = renderDashboard();
 
     expect(await screen.findByText('Распределение главных цветков')).toBeInTheDocument();
+    expect(screen.getByText('Распределение стандартизированных значений (Z-оценок)')).toBeInTheDocument();
     expect(screen.getByText('Сравнение распределений по шкалам')).toBeInTheDocument();
+    expect(screen.getByText(/Гистограмма показывает, как распределяются сырые баллы/)).toBeInTheDocument();
     await waitFor(() => {
       expect(container.querySelectorAll('svg').length).toBeGreaterThan(0);
     });
@@ -313,6 +330,8 @@ describe('AdminAnalyticsDashboard', () => {
     expect(within(dialog).getByText('Сырые баллы по шкалам')).toBeInTheDocument();
     expect(within(dialog).getByText('Z-оценки по шкалам')).toBeInTheDocument();
     expect(within(dialog).getByText('Профиль по шкалам и рангам')).toBeInTheDocument();
+    expect(within(dialog).getByText('Вторичный цветок')).toBeInTheDocument();
+    expect(within(dialog).getByText('Интерпретация')).toBeInTheDocument();
     await waitFor(() => {
       expect(container.querySelectorAll('.modal-card svg').length).toBeGreaterThan(0);
     });
@@ -332,6 +351,20 @@ describe('AdminAnalyticsDashboard', () => {
     });
   });
 
+  it('closes respondent modal by Escape', async () => {
+    renderDashboard();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Испытуемые' }));
+    fireEvent.click(await screen.findAllByRole('button', { name: 'Подробнее' }).then((buttons) => buttons[0]));
+
+    await screen.findByRole('dialog');
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
   it('renders item-level tables and question charts', async () => {
     renderDashboard();
 
@@ -339,7 +372,8 @@ describe('AdminAnalyticsDashboard', () => {
 
     expect(await screen.findByText('Тепловая карта ответов по вопросам')).toBeInTheDocument();
     expect(screen.getByText('Средний балл по каждому вопросу')).toBeInTheDocument();
-    expect(screen.getByText('Таблица item-level summary')).toBeInTheDocument();
+    expect(screen.getByText('Распределение ответов по вопросу')).toBeInTheDocument();
+    expect(screen.getByText('Сводная таблица по вопросам')).toBeInTheDocument();
     expect(screen.getAllByText('Вопрос 1').length).toBeGreaterThan(0);
   });
 });

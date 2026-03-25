@@ -223,6 +223,21 @@ export interface AdminRespondentRawScores {
     raw_score: number;
     z_score: number;
   } | null;
+  secondary_flower: {
+    scale_code: string;
+    flower_code: string;
+    flower_title: string;
+    flower_symbol: string | null;
+    raw_score: number;
+    z_score: number;
+  } | null;
+  interpretation: {
+    z_level_code: string | null;
+    z_level_title: string | null;
+    profile_title: string | null;
+    profile_summary: string | null;
+    z_summary: string | null;
+  } | null;
   scales: AdminRespondentScale[];
 }
 

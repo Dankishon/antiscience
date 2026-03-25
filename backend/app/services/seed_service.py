@@ -71,6 +71,13 @@ def ensure_seed_data(db: Session) -> None:
             )
             db.add(flower)
             existing_flowers[flower.code] = flower
+        else:
+            flower.title = item["title"]
+            flower.symbol = item.get("symbol")
+            flower.scale_code = item["scaleCode"]
+            flower.sort_order = item["sortOrder"]
+            flower.meaning = item.get("meaning")
+            flower.rationale = item.get("rationale")
         flowers_by_scale[item["scaleCode"]] = flower
 
     db.flush()
@@ -80,45 +87,65 @@ def ensure_seed_data(db: Session) -> None:
         for scale in db.scalars(select(SurveyScale).where(SurveyScale.survey_id == survey.id)).all()
     }
     for item in question_payload["scales"]:
-        if item["code"] in existing_scales:
-            continue
-        db.add(
-            SurveyScale(
-                survey_id=survey.id,
-                code=item["code"],
-                title=item["title"],
-                short_code=item["shortCode"],
-                flower_code=item["flowerCode"],
-                min_score=item["minScore"],
-                max_score=item["maxScore"],
-                sort_order=item["sortOrder"],
-                seed_payload=item.get("metadata"),
+        scale = existing_scales.get(item["code"])
+        if not scale:
+            db.add(
+                SurveyScale(
+                    survey_id=survey.id,
+                    code=item["code"],
+                    title=item["title"],
+                    short_code=item["shortCode"],
+                    flower_code=item["flowerCode"],
+                    min_score=item["minScore"],
+                    max_score=item["maxScore"],
+                    sort_order=item["sortOrder"],
+                    seed_payload=item.get("metadata"),
+                )
             )
-        )
+            continue
+
+        scale.title = item["title"]
+        scale.short_code = item["shortCode"]
+        scale.flower_code = item["flowerCode"]
+        scale.min_score = item["minScore"]
+        scale.max_score = item["maxScore"]
+        scale.sort_order = item["sortOrder"]
+        scale.seed_payload = item.get("metadata")
 
     existing_questions = {
         question.code: question
         for question in db.scalars(select(Question).where(Question.survey_id == survey.id)).all()
     }
     for item in question_payload["questions"]:
-        if item["code"] in existing_questions:
-            continue
         flower = flowers_by_scale[item["scaleCode"]]
-        db.add(
-            Question(
-                survey_id=survey.id,
-                code=item["code"],
-                number=item["number"],
-                prompt=item["prompt"],
-                scale_code=item["scaleCode"],
-                flower_code=flower.code,
-                sort_order=item["sortOrder"],
-                min_value=item["minValue"],
-                max_value=item["maxValue"],
-                weight=item["weight"],
-                is_required=item.get("required", True),
+        question = existing_questions.get(item["code"])
+        if not question:
+            db.add(
+                Question(
+                    survey_id=survey.id,
+                    code=item["code"],
+                    number=item["number"],
+                    prompt=item["prompt"],
+                    scale_code=item["scaleCode"],
+                    flower_code=flower.code,
+                    sort_order=item["sortOrder"],
+                    min_value=item["minValue"],
+                    max_value=item["maxValue"],
+                    weight=item["weight"],
+                    is_required=item.get("required", True),
+                )
             )
-        )
+            continue
+
+        question.number = item["number"]
+        question.prompt = item["prompt"]
+        question.scale_code = item["scaleCode"]
+        question.flower_code = flower.code
+        question.sort_order = item["sortOrder"]
+        question.min_value = item["minValue"]
+        question.max_value = item["maxValue"]
+        question.weight = item["weight"]
+        question.is_required = item.get("required", True)
 
     existing_interpretations = {
         (item.flower_code, item.entry_key): item
@@ -132,7 +159,8 @@ def ensure_seed_data(db: Session) -> None:
         flower_code = profile["flowerCode"]
         profile_block = profile["profileInterpretation"]
         profile_key = (flower_code, "profile")
-        if profile_key not in existing_interpretations:
+        existing_profile = existing_interpretations.get(profile_key)
+        if not existing_profile:
             db.add(
                 FlowerInterpretation(
                     survey_id=survey.id,
@@ -147,41 +175,62 @@ def ensure_seed_data(db: Session) -> None:
                     sort_order=0,
                 )
             )
+        else:
+            existing_profile.title = profile_block["title"]
+            existing_profile.summary = profile_block["summary"]
+            existing_profile.source_header = profile_block.get("narrative", {}).get("sourceHeader")
+            existing_profile.source_range = None
+            existing_profile.sort_order = 0
 
         for entry in profile["zInterpretations"]:
             entry_key = (flower_code, entry["zLevelCode"])
-            if entry_key in existing_interpretations:
-                continue
-            db.add(
-                FlowerInterpretation(
-                    survey_id=survey.id,
-                    flower_code=flower_code,
-                    entry_key=entry["zLevelCode"],
-                    entry_type="z_level",
-                    z_level_code=entry["zLevelCode"],
-                    title=entry["title"],
-                    summary=entry["summary"],
-                    source_header=None,
-                    source_range=entry.get("sourceRange"),
-                    sort_order=entry["sortOrder"],
+            existing_entry = existing_interpretations.get(entry_key)
+            if not existing_entry:
+                db.add(
+                    FlowerInterpretation(
+                        survey_id=survey.id,
+                        flower_code=flower_code,
+                        entry_key=entry["zLevelCode"],
+                        entry_type="z_level",
+                        z_level_code=entry["zLevelCode"],
+                        title=entry["title"],
+                        summary=entry["summary"],
+                        source_header=None,
+                        source_range=entry.get("sourceRange"),
+                        sort_order=entry["sortOrder"],
+                    )
                 )
-            )
+                continue
+
+            existing_entry.entry_type = "z_level"
+            existing_entry.z_level_code = entry["zLevelCode"]
+            existing_entry.title = entry["title"]
+            existing_entry.summary = entry["summary"]
+            existing_entry.source_header = None
+            existing_entry.source_range = entry.get("sourceRange")
+            existing_entry.sort_order = entry["sortOrder"]
 
         for trait in profile.get("traits", []):
             trait_key = (flower_code, trait["code"])
-            if trait_key in existing_traits:
-                continue
-            db.add(
-                FlowerTrait(
-                    survey_id=survey.id,
-                    flower_code=flower_code,
-                    code=trait["code"],
-                    label=trait["label"],
-                    description=trait["description"],
-                    polarity=trait["polarity"],
-                    sort_order=trait["sortOrder"],
+            existing_trait = existing_traits.get(trait_key)
+            if not existing_trait:
+                db.add(
+                    FlowerTrait(
+                        survey_id=survey.id,
+                        flower_code=flower_code,
+                        code=trait["code"],
+                        label=trait["label"],
+                        description=trait["description"],
+                        polarity=trait["polarity"],
+                        sort_order=trait["sortOrder"],
+                    )
                 )
-            )
+                continue
+
+            existing_trait.label = trait["label"]
+            existing_trait.description = trait["description"]
+            existing_trait.polarity = trait["polarity"]
+            existing_trait.sort_order = trait["sortOrder"]
 
     db.commit()
 

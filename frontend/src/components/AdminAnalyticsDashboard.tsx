@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   api,
@@ -12,6 +12,7 @@ import {
   buildScaleBoxplots,
   buildScaleHeatmapRows,
   buildScaleHistogram,
+  buildZScoreHistogram,
   filterQuestionsByScale,
   formatDuration,
   getHeatmapIntensity,
@@ -31,6 +32,10 @@ function formatDate(value: string): string {
     dateStyle: 'long',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function ChartHelper({ children }: { children: string }) {
+  return <p className="chart-helper">{children}</p>;
 }
 
 function HeatmapTable({
@@ -158,6 +163,7 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
   const [detail, setDetail] = useState<Awaited<ReturnType<typeof api.getRespondentRawScores>> | null>(null);
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [scaleHeatmapMode, setScaleHeatmapMode] = useState<HeatmapMode>('raw');
+  const detailRequestIdRef = useRef(0);
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
@@ -213,6 +219,7 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
 
     let active = true;
     setQuestionStatsLoading(true);
+    setQuestionStats(null);
 
     const load = async () => {
       try {
@@ -245,6 +252,7 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
 
     let active = true;
     setConsistencyLoading(true);
+    setConsistency(null);
 
     const load = async () => {
       try {
@@ -291,6 +299,10 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
     () => buildScaleHistogram(respondents, selectedHistogramScale),
     [respondents, selectedHistogramScale],
   );
+  const zHistogramData = useMemo(
+    () => buildZScoreHistogram(respondents, selectedHistogramScale),
+    [respondents, selectedHistogramScale],
+  );
   const boxplotData = useMemo(
     () => buildScaleBoxplots(respondents, scales, scaleHeatmapMode),
     [respondents, scales, scaleHeatmapMode],
@@ -307,16 +319,26 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
   const averageRawScores = summary?.average_raw_scores ?? [];
 
   const openRespondentDetail = async (sessionId: string) => {
+    const requestId = detailRequestIdRef.current + 1;
+    detailRequestIdRef.current = requestId;
     setDetail(null);
     setDetailError(null);
     setDetailLoading(true);
     try {
       const payload = await api.getRespondentRawScores(sessionId);
+      if (detailRequestIdRef.current !== requestId) {
+        return;
+      }
       setDetail(payload);
     } catch (currentError) {
+      if (detailRequestIdRef.current !== requestId) {
+        return;
+      }
       setDetailError(currentError instanceof Error ? currentError.message : 'Не удалось загрузить детализацию');
     } finally {
-      setDetailLoading(false);
+      if (detailRequestIdRef.current === requestId) {
+        setDetailLoading(false);
+      }
     }
   };
 
@@ -325,7 +347,7 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
       <section className="card page-card page-card--centered">
         <span className="eyebrow">Аналитика</span>
         <h1>Сначала войдите в систему</h1>
-        <p>После входа администратору будут доступны respondent-level аналитика и психометрические показатели.</p>
+        <p>После входа администратору будут доступны аналитика по прохождениям и психометрические показатели.</p>
         <div className="stack-row">
           <Link className="button" to="/">
             Перейти к авторизации
@@ -368,7 +390,7 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
               rel="noreferrer"
               target="_blank"
             >
-              Экспорт detailed CSV
+              Подробный CSV
             </a>
             <a
               className="button button--secondary"
@@ -376,7 +398,7 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
               rel="noreferrer"
               target="_blank"
             >
-              Экспорт detailed JSON
+              Подробный JSON
             </a>
           </div>
         </section>
@@ -439,7 +461,7 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
           <section className="card page-card page-card--centered">
             <span className="eyebrow">Аналитика</span>
             <h2>Загружаем данные</h2>
-            <p>Собираем сводку, respondent-level матрицы и психометрические показатели из backend.</p>
+            <p>Собираем сводку, матрицы ответов и психометрические показатели с backend.</p>
           </section>
         ) : null}
 
@@ -467,6 +489,10 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                   )}
                   valueKey="count"
                 />
+                <ChartHelper>
+                  Этот график показывает, сколько раз каждый цветок становился главным по итогам завершённых
+                  прохождений. Он помогает увидеть доминирующие профили в текущей базе.
+                </ChartHelper>
               </section>
 
               <section className="card page-card">
@@ -483,13 +509,17 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                   tooltipContent={(datum) => (
                     <>
                       <strong>{String(datum.scale_title ?? '')}</strong>
-                      <p>Средний raw score: {Number(datum.average_raw_score ?? 0).toFixed(2)}</p>
+                      <p>Средний сырой балл: {Number(datum.average_raw_score ?? 0).toFixed(2)}</p>
                     </>
                   )}
                   valueDomain={[0, 12]}
                   valueKey="average_raw_score"
                   xTickFormatter={(value) => String(value).slice(0, 10)}
                 />
+                <ChartHelper>
+                  Здесь показано среднее значение сырых баллов по каждой шкале среди всех завершённых прохождений. Это
+                  удобно для сравнения общей выраженности шкал без нормализации.
+                </ChartHelper>
               </section>
             </div>
 
@@ -528,12 +558,52 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                   data={histogramData}
                   tooltipContent={(datum) => (
                     <>
-                      <strong>Raw score {String(datum.value ?? '')}</strong>
-                      <p>Частота: {String(datum.count ?? '')}</p>
+                      <strong>Сырой балл: {String(datum.value ?? '')}</strong>
+                      <p>Испытуемых: {String(datum.count ?? '')}</p>
                     </>
                   )}
                   valueKey="count"
                 />
+                <ChartHelper>
+                  Гистограмма показывает, как распределяются сырые баллы по выбранной шкале среди всех испытуемых.
+                  Это помогает заметить скошенные распределения, концентрацию в центре и редкие экстремальные случаи.
+                </ChartHelper>
+              </section>
+
+              <section className="card page-card">
+                <div className="section-header">
+                  <div>
+                    <span className="eyebrow">Распределения</span>
+                    <h2>Распределение стандартизированных значений (Z-оценок)</h2>
+                  </div>
+                </div>
+
+                <div className="metric-item">
+                  <span>Выбранная шкала</span>
+                  <strong>{selectedScaleMeta?.scale_name ?? 'Не выбрана'}</strong>
+                </div>
+
+                <AnalyticsBarChart
+                  categoryKey="label"
+                  color="#556057"
+                  data={zHistogramData}
+                  tooltipContent={(datum) => (
+                    <>
+                      <strong>{String(datum.label ?? '')}</strong>
+                      <p>
+                        Диапазон: {Number(datum.from ?? 0).toFixed(1)} ... {Number(datum.to ?? 0).toFixed(1)}
+                      </p>
+                      <p>Испытуемых: {String(datum.count ?? '')}</p>
+                    </>
+                  )}
+                  valueKey="count"
+                  widthPerItem={92}
+                />
+                <ChartHelper>
+                  Эта гистограмма показывает распределение Z-оценок по выбранной шкале. В текущем проекте Z-оценка
+                  рассчитывается внутри одного профиля: она показывает, насколько шкала отклоняется от среднего уровня
+                  по 10 шкалам конкретного испытуемого.
+                </ChartHelper>
               </section>
 
               <section className="card page-card">
@@ -550,18 +620,22 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                     onClick={() => setScaleHeatmapMode('raw')}
                     type="button"
                   >
-                    Raw score
+                    Сырые баллы
                   </button>
                   <button
                     className={`tab${scaleHeatmapMode === 'z' ? ' tab--active' : ''}`}
                     onClick={() => setScaleHeatmapMode('z')}
                     type="button"
                   >
-                    Z-score
+                    Z-оценки
                   </button>
                 </div>
 
                 <BoxplotComparison mode={scaleHeatmapMode} stats={boxplotData} />
+                <ChartHelper>
+                  Диаграмма размаха сравнивает распределения по шкалам через медиану, квартильный размах и выбросы.
+                  Она нужна, чтобы быстро увидеть асимметрию, разброс и нестандартные наблюдения по каждой шкале.
+                </ChartHelper>
               </section>
             </div>
 
@@ -579,14 +653,14 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                   onClick={() => setScaleHeatmapMode('raw')}
                   type="button"
                 >
-                  Raw score
+                  Сырые баллы
                 </button>
                 <button
                   className={`tab${scaleHeatmapMode === 'z' ? ' tab--active' : ''}`}
                   onClick={() => setScaleHeatmapMode('z')}
                   type="button"
                 >
-                  Z-score
+                  Z-оценки
                 </button>
               </div>
 
@@ -599,6 +673,11 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                   values: row.values.map((value) => ({ key: value.scale_code, value: value.value })),
                 }))}
               />
+              <ChartHelper>
+                Тепловая карта показывает профиль каждого испытуемого сразу по всем шкалам. Режим сырых баллов
+                помогает увидеть абсолютную выраженность, а режим Z-оценок показывает отклонение шкалы от среднего
+                уровня внутри конкретного профиля.
+              </ChartHelper>
             </section>
           </>
         ) : null}
@@ -611,6 +690,10 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                 <h2>Список всех завершённых прохождений</h2>
               </div>
             </div>
+            <ChartHelper>
+              Таблица показывает все завершённые прохождения с основными метаданными. Через неё удобно переходить к
+              детальному разбору конкретного профиля без повторного поиска по базе.
+            </ChartHelper>
 
             <div className="admin-table-wrap">
               <table className="admin-table">
@@ -727,6 +810,10 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                   values: row.values.map((value) => ({ key: value.question_code, value: value.value })),
                 }))}
               />
+              <ChartHelper>
+                Тепловая карта показывает ответы всех испытуемых по каждому вопросу. Она помогает находить атипичные
+                паттерны, локальные перекосы и вопросы, которые ведут себя нестабильно внутри шкалы.
+              </ChartHelper>
             </section>
 
             <div className="admin-section-grid">
@@ -759,6 +846,10 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                   valueKey="mean"
                   widthPerItem={52}
                 />
+                <ChartHelper>
+                  График показывает средний ответ по каждому вопросу. Он помогает увидеть, какие утверждения чаще
+                  получают высокие или низкие оценки в текущей выборке.
+                </ChartHelper>
               </section>
 
               <section className="card page-card">
@@ -790,6 +881,10 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                   valueKey="standardDeviation"
                   widthPerItem={52}
                 />
+                <ChartHelper>
+                  Здесь показана вариативность ответов по вопросам. Чем выше столбец, тем сильнее расходятся ответы
+                  между испытуемыми и тем больше вопрос различает профили.
+                </ChartHelper>
               </section>
             </div>
 
@@ -797,8 +892,8 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
               <section className="card page-card">
                 <div className="section-header">
                   <div>
-                    <span className="eyebrow">Распределение</span>
-                    <h2>Ответы по выбранному вопросу</h2>
+                    <span className="eyebrow">Гистограмма</span>
+                    <h2>Распределение ответов по вопросу</h2>
                   </div>
                 </div>
 
@@ -807,19 +902,23 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                   data={selectedQuestionDistribution}
                   tooltipContent={(datum) => (
                     <>
-                      <strong>Ответ {String(datum.value ?? '')}</strong>
+                      <strong>Вариант ответа {String(datum.value ?? '')}</strong>
                       <p>Частота: {String(datum.count ?? '')}</p>
                     </>
                   )}
                   valueKey="count"
                 />
+                <ChartHelper>
+                  Эта гистограмма показывает, как часто пользователи выбирали каждый вариант ответа по выбранному
+                  вопросу. По ней легко заметить перегруженные или почти неиспользуемые варианты.
+                </ChartHelper>
               </section>
 
               <section className="card page-card">
                 <div className="section-header">
                   <div>
                     <span className="eyebrow">Сводка</span>
-                    <h2>Таблица item-level summary</h2>
+                    <h2>Сводная таблица по вопросам</h2>
                   </div>
                 </div>
 
@@ -827,15 +926,15 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                   <table className="admin-table admin-table--dense">
                     <thead>
                       <tr>
-                        <th>Question ID</th>
+                        <th>ID вопроса</th>
                         <th>№</th>
                         <th>Вопрос</th>
                         <th>Шкала</th>
-                        <th>Mean</th>
-                        <th>Variance</th>
-                        <th>Std</th>
-                        <th>Count</th>
-                        <th>Missing</th>
+                        <th>Среднее</th>
+                        <th>Дисперсия</th>
+                        <th>Ст. отклонение</th>
+                        <th>Количество</th>
+                        <th>Пропуски</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -865,7 +964,7 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
             <div className="section-header">
               <div>
                 <span className="eyebrow">Внутренняя согласованность</span>
-                <h2>Cronbach’s alpha и надежность шкал</h2>
+                <h2>Внутренняя согласованность и α Кронбаха</h2>
               </div>
             </div>
 
@@ -887,7 +986,7 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
 
             <div className="card card--soft dashboard-grid">
               <div className="metric-item">
-                <span>Cronbach’s alpha</span>
+                <span>α Кронбаха</span>
                 <strong>{consistencyLoading ? '...' : consistency?.cronbach_alpha?.toFixed(4) ?? '—'}</strong>
               </div>
               <div className="metric-item">
@@ -899,6 +998,11 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                 <strong>{consistencyLoading ? '...' : consistency?.questions_count ?? 0}</strong>
               </div>
             </div>
+            <ChartHelper>
+              Этот раздел показывает, насколько вопросы внутри выбранной шкалы работают согласованно. Здесь можно
+              оценить общую надежность шкалы, увидеть вклад каждого вопроса и заметить пункты, которые ослабляют
+              измерение.
+            </ChartHelper>
 
             {consistency?.message ? <div className="notice notice--info">{consistency.message}</div> : null}
 
@@ -924,12 +1028,16 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                         <>
                           <strong>{String(datum.label ?? '')}</strong>
                           <p>{String(datum.questionText ?? '')}</p>
-                          <p>Item-total correlation: {Number(datum.value ?? 0).toFixed(4)}</p>
+                          <p>Корреляция вопроса со шкалой: {Number(datum.value ?? 0).toFixed(4)}</p>
                         </>
                       )}
                       valueDomain={['auto', 'auto']}
                       valueKey="value"
                     />
+                    <ChartHelper>
+                      Этот график показывает, насколько каждый вопрос согласован с общей шкалой без самого себя.
+                      Низкие значения могут указывать на слабый или проблемный вопрос.
+                    </ChartHelper>
                   </section>
 
                   <section className="card card--soft page-card">
@@ -952,12 +1060,16 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                         <>
                           <strong>{String(datum.label ?? '')}</strong>
                           <p>{String(datum.questionText ?? '')}</p>
-                          <p>Alpha if deleted: {Number(datum.value ?? 0).toFixed(4)}</p>
+                          <p>α при удалении: {Number(datum.value ?? 0).toFixed(4)}</p>
                         </>
                       )}
                       valueDomain={['auto', 'auto']}
                       valueKey="value"
                     />
+                    <ChartHelper>
+                      Здесь показано, как изменится надежность шкалы, если убрать конкретный вопрос. Рост коэффициента
+                      после удаления может указывать на проблемный пункт.
+                    </ChartHelper>
                   </section>
                 </div>
 
@@ -969,8 +1081,8 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
                         <th>Среднее</th>
                         <th>Дисперсия</th>
                         <th>Стандартное отклонение</th>
-                        <th>Item-total correlation</th>
-                        <th>Alpha if deleted</th>
+                        <th>Корреляция со шкалой</th>
+                        <th>α при удалении</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1011,6 +1123,7 @@ export function AdminAnalyticsDashboard({ user }: { user: User | null }) {
           formatDate={formatDate}
           loading={detailLoading}
           onClose={() => {
+            detailRequestIdRef.current += 1;
             setDetail(null);
             setDetailError(null);
             setDetailLoading(false);

@@ -13,28 +13,26 @@ import {
   YAxis,
 } from 'recharts';
 
-type ChartDatum = Record<string, number | string | null>;
-
-interface AnalyticsBarChartProps {
-  data: ChartDatum[];
-  categoryKey: string;
-  valueKey: string;
+interface AnalyticsBarChartProps<T extends object> {
+  data: T[];
+  categoryKey: keyof T & string;
+  valueKey: keyof T & string;
   horizontal?: boolean;
   height?: number;
   widthPerItem?: number;
   color?: string;
   valueDomain?: [number | 'auto', number | 'auto'];
   xTickFormatter?: (value: string | number) => string;
-  tooltipContent?: (datum: ChartDatum) => ReactNode;
+  tooltipContent?: (datum: T) => ReactNode;
 }
 
-interface AnalyticsRadarChartProps {
-  data: ChartDatum[];
-  labelKey: string;
-  valueKey: string;
+interface AnalyticsRadarChartProps<T extends object> {
+  data: T[];
+  labelKey: keyof T & string;
+  valueKey: keyof T & string;
   height?: number;
   width?: number;
-  tooltipContent?: (datum: ChartDatum) => ReactNode;
+  tooltipContent?: (datum: T) => ReactNode;
 }
 
 function ChartTooltip({ children }: { children: ReactNode }) {
@@ -45,7 +43,7 @@ function ChartTooltip({ children }: { children: ReactNode }) {
   return <div className="chart-tooltip">{children}</div>;
 }
 
-export function AnalyticsBarChart({
+export function AnalyticsBarChart<T extends object>({
   data,
   categoryKey,
   valueKey,
@@ -56,7 +54,7 @@ export function AnalyticsBarChart({
   valueDomain,
   xTickFormatter,
   tooltipContent,
-}: AnalyticsBarChartProps) {
+}: AnalyticsBarChartProps<T>) {
   const chartWidth = horizontal ? 720 : Math.max(360, data.length * widthPerItem);
   const chartHeight = horizontal ? Math.max(280, data.length * 56) : height;
 
@@ -112,7 +110,7 @@ export function AnalyticsBarChart({
               return null;
             }
 
-            const datum = payload[0]?.payload as ChartDatum;
+            const datum = payload[0]?.payload as T;
             return (
               <ChartTooltip>
                 {tooltipContent ? (
@@ -134,17 +132,21 @@ export function AnalyticsBarChart({
   );
 }
 
-export function AnalyticsRadarChart({
+export function AnalyticsRadarChart<T extends object>({
   data,
   labelKey,
   valueKey,
   height = 360,
   width = 480,
   tooltipContent,
-}: AnalyticsRadarChartProps) {
-  const values = data
-    .map((item) => item[valueKey])
-    .filter((item): item is number => typeof item === 'number');
+}: AnalyticsRadarChartProps<T>) {
+  const values = data.reduce<number[]>((accumulator, item) => {
+    const value = item[valueKey];
+    if (typeof value === 'number') {
+      accumulator.push(value);
+    }
+    return accumulator;
+  }, []);
   const minValue = values.length > 0 ? Math.min(...values, 0) : 0;
   const maxValue = values.length > 0 ? Math.max(...values, 0) : 1;
 
@@ -165,7 +167,7 @@ export function AnalyticsRadarChart({
               return null;
             }
 
-            const datum = payload[0]?.payload as ChartDatum;
+            const datum = payload[0]?.payload as T;
             return (
               <ChartTooltip>
                 {tooltipContent ? (

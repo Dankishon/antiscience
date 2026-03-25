@@ -135,6 +135,8 @@ class AdminAnalyticsApiTests(unittest.TestCase):
         self.assertEqual(payload["user_id"], user["id"])
         self.assertFalse(payload["is_guest"])
         self.assertIsNotNone(payload["main_flower"])
+        self.assertIsNotNone(payload["secondary_flower"])
+        self.assertIsNotNone(payload["interpretation"])
         self.assertIsNotNone(payload["duration_seconds"])
         self.assertIn("mean", payload)
         self.assertIn("standard_deviation", payload)
@@ -147,6 +149,14 @@ class AdminAnalyticsApiTests(unittest.TestCase):
         self.assertEqual(len(hs_scale["questions"]), 3)
         self.assertTrue(all(question["answer_value"] == 4 for question in hs_scale["questions"]))
         self.assertTrue(all(question["contribution_to_scale"] == 4 for question in hs_scale["questions"]))
+        self.assertEqual(sum(question["contribution_to_scale"] for question in hs_scale["questions"]), hs_scale["raw_score"])
+
+        mean_value = payload["mean"]
+        standard_deviation = payload["standard_deviation"]
+        for scale in payload["scales"]:
+            raw_score = scale["raw_score"]
+            expected_z = 0.0 if standard_deviation == 0 else round((raw_score - mean_value) / standard_deviation, 4)
+            self.assertAlmostEqual(scale["z_score"], expected_z, places=3)
 
         with self.testing_session_local() as db:
             stored_answers = db.scalars(select(Answer).where(Answer.response_session_id == session_id)).all()
@@ -232,6 +242,7 @@ class AdminAnalyticsApiTests(unittest.TestCase):
         self.assertEqual(first_question["missing_count"], 0)
         self.assertEqual(len(first_question["distribution"]), 5)
         self.assertEqual(sum(bucket["count"] for bucket in first_question["distribution"]), 2)
+        self.assertAlmostEqual(first_question["mean_answer"], 3.0, places=3)
 
     def test_internal_consistency_endpoint_returns_metrics_for_selected_scale(self) -> None:
         admin_user = self._register("consistency_admin")

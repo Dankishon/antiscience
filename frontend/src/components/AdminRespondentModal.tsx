@@ -46,6 +46,14 @@ export function AdminRespondentModal({
     zScore: scale.z_score,
     flowerTitle: scale.flower_title,
   }));
+  const orderedQuestions = sortedScales
+    .flatMap((scale) =>
+      scale.questions.map((question) => ({
+        ...question,
+        scaleRank: scale.rank,
+      })),
+    )
+    .sort((left, right) => left.question_order - right.question_order || left.scaleRank - right.scaleRank);
 
   return (
     <div
@@ -54,6 +62,7 @@ export function AdminRespondentModal({
       role="presentation"
     >
       <div
+        aria-labelledby="respondent-detail-title"
         aria-modal="true"
         className="modal-card modal-card--wide"
         onClick={(event) => event.stopPropagation()}
@@ -72,7 +81,7 @@ export function AdminRespondentModal({
             </button>
           </div>
           <div className="modal-card__headline">
-            <h2>{detail?.respondent_label ?? 'Детальный просмотр'}</h2>
+            <h2 id="respondent-detail-title">{detail?.respondent_label ?? 'Детальный просмотр'}</h2>
             <p>
               {detail?.submitted_at
                 ? `Прохождение завершено ${formatDate(detail.submitted_at)}.`
@@ -116,8 +125,20 @@ export function AdminRespondentModal({
                   <strong>{formatDuration(detail.duration_seconds)}</strong>
                 </div>
                 <div className="metric-item">
+                  <span>Среднее по шкалам</span>
+                  <strong>{detail.mean?.toFixed(4) ?? 'Не указано'}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Стандартное отклонение</span>
+                  <strong>{detail.standard_deviation?.toFixed(4) ?? 'Не указано'}</strong>
+                </div>
+                <div className="metric-item">
                   <span>Главный цветок</span>
                   <strong>{detail.main_flower?.flower_title ?? 'Не указан'}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Вторичный цветок</span>
+                  <strong>{detail.secondary_flower?.flower_title ?? 'Не указан'}</strong>
                 </div>
               </section>
 
@@ -137,11 +158,15 @@ export function AdminRespondentModal({
                       <>
                         <strong>{String(datum.label ?? '')}</strong>
                         <p>{String(datum.flowerTitle ?? '')}</p>
-                        <p>Raw score: {String(datum.rawScore ?? '')}</p>
+                        <p>Сырой балл: {String(datum.rawScore ?? '')}</p>
                       </>
                     )}
                     valueKey="rawScore"
                   />
+                  <p className="chart-helper">
+                    График показывает сырые баллы испытуемого по всем шкалам. Он помогает увидеть абсолютную
+                    выраженность шкал до стандартизации.
+                  </p>
                 </section>
 
                 <section className="card page-card">
@@ -166,6 +191,10 @@ export function AdminRespondentModal({
                     valueDomain={['auto', 'auto']}
                     valueKey="zScore"
                   />
+                  <p className="chart-helper">
+                    Этот график показывает стандартизированные значения шкал внутри конкретного профиля. Значения выше
+                    нуля означают выраженность выше среднего уровня по 10 шкалам этого испытуемого.
+                  </p>
                 </section>
               </div>
 
@@ -184,7 +213,7 @@ export function AdminRespondentModal({
                         <th>Ранг</th>
                         <th>Шкала</th>
                         <th>Цветок</th>
-                        <th>Raw score</th>
+                        <th>Сырой балл</th>
                         <th>Z-оценка</th>
                       </tr>
                     </thead>
@@ -225,21 +254,35 @@ export function AdminRespondentModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedScales.flatMap((scale) =>
-                        scale.questions.map((question) => (
-                          <tr key={question.question_id}>
-                            <td>{question.question_order}</td>
-                            <td>{question.question_text}</td>
-                            <td>{question.scale_name}</td>
-                            <td>{question.answer_value ?? '—'}</td>
-                            <td>{question.contribution_to_scale ?? '—'}</td>
-                          </tr>
-                        )),
-                      )}
+                      {orderedQuestions.map((question) => (
+                        <tr key={question.question_id}>
+                          <td>{question.question_order}</td>
+                          <td>{question.question_text}</td>
+                          <td>{question.scale_name}</td>
+                          <td>{question.answer_value ?? '—'}</td>
+                          <td>{question.contribution_to_scale ?? '—'}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
               </section>
+
+              {detail.interpretation ? (
+                <section className="card page-card">
+                  <div className="section-header">
+                    <div>
+                      <span className="eyebrow">Интерпретация</span>
+                      <h3>{detail.interpretation.profile_title ?? 'Личностная интерпретация'}</h3>
+                    </div>
+                  </div>
+
+                  <div className="modal-interpretation">
+                    <p>{detail.interpretation.profile_summary ?? 'Описание профиля пока отсутствует.'}</p>
+                    {detail.interpretation.z_summary ? <p>{detail.interpretation.z_summary}</p> : null}
+                  </div>
+                </section>
+              ) : null}
             </>
           ) : null}
         </div>

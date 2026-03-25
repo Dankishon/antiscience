@@ -1192,14 +1192,14 @@
     {
       "flowerCode": "iris",
       "flowerTitle": "Ирис",
-      "symbol": "🌈",
+      "symbol": "🪻",
       "profileInterpretation": {
         "code": "iris__profile",
         "title": "Ключевые черты",
         "summary": "мудрость, посредник между мирами, мистицизм, связь с потусторонним.",
         "narrative": {
           "sourceType": "traits_section",
-          "sourceHeader": "9. ИРИС 🌈 Символ: мудрость, посредник между мирами, мистицизм, связь с потусторонним."
+          "sourceHeader": "9. ИРИС 🪻 Символ: мудрость, посредник между мирами, мистицизм, связь с потусторонним."
         }
       },
       "zInterpretations": [

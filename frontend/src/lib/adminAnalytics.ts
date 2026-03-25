@@ -18,6 +18,13 @@ export interface ScaleBoxplotStat {
   outliers: number[];
 }
 
+export interface HistogramBin {
+  label: string;
+  from: number;
+  to: number;
+  count: number;
+}
+
 export function filterQuestionsByScale(
   questions: AdminQuestionMeta[],
   scaleCode: string | null,
@@ -106,6 +113,48 @@ export function buildScaleHistogram(
   }
 
   return Array.from(counts, ([value, count]) => ({ value, count }));
+}
+
+export function buildZScoreHistogram(
+  respondents: AdminRespondentMatrixRow[],
+  scaleCode: string | null,
+  binWidth = 0.5,
+): HistogramBin[] {
+  if (!scaleCode) {
+    return [];
+  }
+
+  const values = respondents
+    .map((respondent) => respondent.z_scores_by_scale[scaleCode])
+    .filter((value): value is number => typeof value === 'number')
+    .sort((left, right) => left - right);
+
+  if (values.length === 0) {
+    return [];
+  }
+
+  const minBound = Math.floor(values[0] / binWidth) * binWidth;
+  const maxBound = Math.ceil(values[values.length - 1] / binWidth) * binWidth || minBound + binWidth;
+  const safeMaxBound = maxBound > minBound ? maxBound : minBound + binWidth;
+  const bucketCount = Math.max(1, Math.ceil((safeMaxBound - minBound) / binWidth));
+  const bins = Array.from({ length: bucketCount }, (_, index) => {
+    const from = minBound + index * binWidth;
+    const to = from + binWidth;
+    return {
+      label: `${from.toFixed(1)} … ${to.toFixed(1)}`,
+      from,
+      to,
+      count: 0,
+    };
+  });
+
+  for (const value of values) {
+    const rawIndex = Math.floor((value - minBound) / binWidth);
+    const index = Math.min(Math.max(rawIndex, 0), bins.length - 1);
+    bins[index].count += 1;
+  }
+
+  return bins;
 }
 
 function quantile(sortedValues: number[], ratio: number): number {

@@ -15,6 +15,7 @@ from app.schemas.analytics import (
     AdminQuestionMetaRead,
     AdminQuestionStatRead,
     AdminQuestionStatsPayloadRead,
+    AdminRespondentInterpretationRead,
     AdminRespondentMainFlowerRead,
     AdminRespondentMatrixRowRead,
     AdminRespondentQuestionRead,
@@ -398,6 +399,8 @@ def collect_respondent_raw_scores(db: Session, session_id: str) -> AdminResponde
 
     computed_result = response_session.computed_result
     main_scale = next((scale for scale in scales if scale.rank == 1), scales[0] if scales else None)
+    secondary_scale = next((scale for scale in scales if scale.rank == 2), None)
+    interpretation_payload = computed_result.result_payload.get("interpretation") if computed_result else None
 
     return AdminRespondentRawScoresRead(
         session_id=response_session.id,
@@ -419,6 +422,29 @@ def collect_respondent_raw_scores(db: Session, session_id: str) -> AdminResponde
                 z_score=main_scale.z_score,
             )
             if main_scale
+            else None
+        ),
+        secondary_flower=(
+            AdminRespondentMainFlowerRead(
+                scale_code=secondary_scale.scale_code,
+                flower_code=secondary_scale.flower_code,
+                flower_title=secondary_scale.flower_title,
+                flower_symbol=secondary_scale.flower_symbol,
+                raw_score=secondary_scale.raw_score,
+                z_score=secondary_scale.z_score,
+            )
+            if secondary_scale
+            else None
+        ),
+        interpretation=(
+            AdminRespondentInterpretationRead(
+                z_level_code=interpretation_payload.get("z_level_code"),
+                z_level_title=interpretation_payload.get("z_level_title"),
+                profile_title=interpretation_payload.get("profile_title"),
+                profile_summary=interpretation_payload.get("profile_summary"),
+                z_summary=interpretation_payload.get("z_summary"),
+            )
+            if interpretation_payload
             else None
         ),
         scales=scales,

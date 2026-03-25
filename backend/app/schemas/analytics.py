@@ -84,6 +84,14 @@ class AdminRespondentMainFlowerRead(BaseModel):
     z_score: float
 
 
+class AdminRespondentInterpretationRead(BaseModel):
+    z_level_code: str | None
+    z_level_title: str | None
+    profile_title: str | None
+    profile_summary: str | None
+    z_summary: str | None
+
+
 class AdminRespondentScaleRead(BaseModel):
     scale_code: str
     scale_name: str
@@ -107,6 +115,8 @@ class AdminRespondentRawScoresRead(BaseModel):
     mean: float | None
     standard_deviation: float | None
     main_flower: AdminRespondentMainFlowerRead | None
+    secondary_flower: AdminRespondentMainFlowerRead | None
+    interpretation: AdminRespondentInterpretationRead | None
     scales: list[AdminRespondentScaleRead]
 
 
